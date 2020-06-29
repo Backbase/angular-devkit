@@ -1,0 +1,32 @@
+{
+  "name": "@backbase/angular-devkit",
+  "version": "0.1.0",
+  "description": "Angular dev tools for Backbase projects",
+  "scripts": {
+    "prebuild": "rm -rf ./dist",
+    "build": "gulp",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Backbase/angular-devkit.git"
+  },
+  "author": "Backbase",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Backbase/angular-devkit/issues"
+  },
+  "homepage": "https://github.com/Backbase/angular-devkit#readme",
+  "devDependencies": {
+    "@angular-devkit/architect": "^0.803.28",
+    "gulp": "^4.0.2",
+    "gulp-typescript": "^5.0.1",
+    "jest": "^26.1.0",
+    "merge2": "^1.4.1",
+    "ts-jest": "^26.1.1",
+    "typescript": "^3.9.5"
+  },
+  "dependencies": {
+    "@types/jest": "^26.0.3"
+  }
+}
