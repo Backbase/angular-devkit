@@ -1,3 +1,4 @@
 /dist
 /node_modules
 /coverage
+/builders/**/schema.d.ts

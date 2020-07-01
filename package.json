@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "description": "Angular dev tools for Backbase projects",
   "scripts": {
-    "prebuild": "rm -rf ./dist",
+    "generate:sources": "npx -p json-schema-to-typescript json2ts -i src/builders/cx-package/schema.json -o src/builders/cx-package/schema.d.ts",
+    "prebuild": "rm -rf ./dist && npm run generate:sources",
     "build": "gulp",
     "test": "jest"
   },
@@ -24,9 +25,13 @@
     "jest": "^26.1.0",
     "merge2": "^1.4.1",
     "ts-jest": "^26.1.1",
+    "ts-node": "^8.10.2",
     "typescript": "^3.9.5"
   },
   "dependencies": {
-    "@types/jest": "^26.0.3"
-  }
+    "@types/jest": "^26.0.3",
+    "rimraf": "^3.0.2",
+    "zip-folder": "^1.0.0"
+  },
+  "builders": "./src/builders/builders.json"
 }

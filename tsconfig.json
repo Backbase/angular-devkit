@@ -9,11 +9,10 @@
     "typeRoots": ["node_modules/@types"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "types": ["node", "jest"],
     "lib": ["es2018"],
     "declaration": true,
     "baseUrl": ".",
-    "rootDir": "./src"
+    "rootDir": "."
   },
   "include": ["**/*.ts"]
 }

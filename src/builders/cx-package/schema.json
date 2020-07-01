@@ -1,3 +1,43 @@
 {
-
+  "$schema": "http://json-schema.org/schema",
+  "title": "CxPackageBuilderOptions",
+  "description": "Options for the cx-package builder",
+  "type": "object",
+  "properties": {
+    "destDir": {
+      "description": "Output directory where the zip will be generated",
+      "type": "string",
+      "default": "dist/provisioning-packages"
+    },
+    "destFileName": {
+      "description": "File name of the generated zip",
+      "type": "string",
+      "default": "package.zip"
+    },
+    "items": {
+      "description": "List of items to bundle in in the package zip",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "anyOf": [
+          {
+            "description": "A CX page",
+            "type": "object",
+            "properties": {
+              "type": {
+                "enum": ["page"]
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": ["type", "name"],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": ["items"],
+  "additionalProperties": false
 }
