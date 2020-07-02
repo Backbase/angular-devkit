@@ -18,16 +18,64 @@ export interface CxPackageBuilderOptions {
    */
   destFileName?: string;
   /**
-   * List of items to bundle in in the package zip
+   * List of provisioning items to bundle in in the package zip
    */
   items: [
     {
+      /**
+       * Discriminator identifying this `items` entry as a CX page
+       */
       type: "page";
+      /**
+       * Name of the catalog item
+       */
       name: string;
+      /**
+       * Path (relative to the Angular workspace root) to directory used as the `outputPath` of the `ng build` command
+       */
+      builtSources?: string;
+      /**
+       * Path (relative to the Angular workspace root) to the *.hbs file to be served by CX as the entry point for this page
+       */
+      entryFile?: string;
+      /**
+       * Path (relative to the Angular workspace root) to the model.xml file for this page
+       */
+      modelXml: string;
+      /**
+       * Path (relative to the Angular workspace root) to the image file to use as the catalog icon for this page
+       */
+      icon: string;
     },
     ...{
+      /**
+       * Discriminator identifying this `items` entry as a CX page
+       */
       type: "page";
+      /**
+       * Name of the catalog item
+       */
       name: string;
+      /**
+       * Path (relative to the Angular workspace root) to directory used as the `outputPath` of the `ng build` command
+       */
+      builtSources?: string;
+      /**
+       * Path (relative to the Angular workspace root) to the *.hbs file to be served by CX as the entry point for this page
+       */
+      entryFile?: string;
+      /**
+       * Path (relative to the Angular workspace root) to the model.xml file for this page
+       */
+      modelXml: string;
+      /**
+       * Path (relative to the Angular workspace root) to the image file to use as the catalog icon for this page
+       */
+      icon: string;
     }[]
   ];
+  /**
+   * Whether to skip deleting tmp files created during packaging (useful for debugging)
+   */
+  skipCleanUp?: boolean;
 }

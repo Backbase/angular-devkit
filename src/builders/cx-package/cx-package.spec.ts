@@ -4,6 +4,9 @@ import { logging, schema } from '@angular-devkit/core';
 
 import * as path from 'path';
 import {CxPackageBuilderOptions} from "./schema";
+import {promisify} from "util";
+
+const rimraf = promisify( require('rimraf') );
 
 const cxPackageBuilderName = '@backbase/angular-devkit:cx-package';
 /**
@@ -20,6 +23,8 @@ describe('cx-package builder', () => {
   let architectHost: TestingArchitectHost;
 
   beforeEach(async () => {
+    await rimraf(path.resolve(testDir, 'dist'));
+
     const registry = new schema.CoreSchemaRegistry();
     registry.addPostTransform(schema.transforms.addUndefinedDefaults);
 
@@ -36,8 +41,13 @@ describe('cx-package builder', () => {
     const options: CxPackageBuilderOptions = {
       items: [{
         type: 'page',
-        name: 'test-page'
-      }]
+        name: 'test-page',
+        entryFile: 'resources/index.hbs',
+        icon: 'resources/icon.png',
+        builtSources: 'build',
+        modelXml: 'resources/model.xml'
+      }],
+      skipCleanUp: true
     };
 
     const logger = new logging.Logger('');

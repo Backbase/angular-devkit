@@ -1,10 +1,13 @@
 import { BuilderContext, BuilderOutput, createBuilder } from '@angular-devkit/architect';
 import { CxPackageBuilderOptions } from "./schema";
+import {CxPackageBuilderOptionsItem, ProvisioningItem, ProvisioningItemFactory} from './types';
 import * as fs from 'fs';
 import * as path from 'path';
 import { JsonObject } from "@angular-devkit/core";
-import * as zipFolder from 'zip-folder';
-import * as rimraf from 'rimraf';
+import { promisify } from "util";
+import {createPageContent} from "./item-builders/page-builder";
+const zipFolder = promisify( require('zip-folder') );
+const rimraf = promisify( require('rimraf') );
 
 export default createBuilder(cxPackageBuilder);
 
@@ -13,25 +16,59 @@ async function cxPackageBuilder(
     context: BuilderContext,
 ): Promise<BuilderOutput> {
   const destDir = path.resolve(context.workspaceRoot, options.destDir);
-  const { destFileName } = options;
+  const { destFileName, items, skipCleanUp } = options;
 
   await fs.promises.mkdir(destDir, {recursive: true});
 
   const tmpDirName = await createTmpDir(destDir, destFileName);
 
-  await createZipOfZips(destDir, destFileName, tmpDirName, [], context);
+  const createProvisioningItem = createProvisioningItemFactory(tmpDirName, context);
 
-  return new Promise(resolve => {
+  const provisioningItems = await Promise.all(items.map(createProvisioningItem));
+
+  const packageFile = await createZipOfZips(destDir, destFileName, tmpDirName, provisioningItems);
+  context.logger.info(`Created provisioning package: ${packageFile}`);
+
+  if (skipCleanUp) {
+    context.logger.debug(`Skipping cleaning up tmp dir ${tmpDirName}`);
+  } else {
     context.logger.debug('Cleaning up...');
-    rimraf(tmpDirName, error => {
-      if (error) {
-        context.logger.warn(`Error deleting tmp dir ${tmpDirName}: ${error}`);
-      }
-      resolve({
-        success: true
-      });
+    await rimraf(tmpDirName).catch(error => {
+      // non-fatal, just log
+      context.logger.warn(`Error deleting tmp dir ${tmpDirName}: ${error}`);
     });
-  });
+  }
+
+  return {
+    success: true
+  };
+}
+
+function createProvisioningItemFactory(tmpDirName: string, context: BuilderContext): ProvisioningItemFactory {
+  return async item => {
+    const kebabCaseName = item.name.replace(/\s+/g, '-');
+    const itemZipContentsDir = await createTmpDir(tmpDirName, `${kebabCaseName}-${item.type}`);
+
+    const itemZipFileName = `${path.basename(itemZipContentsDir, '.tmp')}.zip`;
+    context.logger.debug(`Creating provisioning item "${item.name}" as ${itemZipFileName}...`);
+
+    switch (item.type) {
+      case 'page':
+        await createPageContent(item, itemZipContentsDir, context);
+        break;
+      default:
+        // Default for completeness, but this should be picked up by the schema validation before we started
+        throw new Error(`Invalid type for provisioning item "${item.name}": "${item.type}"`);
+    }
+
+    await zipFolder(itemZipContentsDir, path.resolve(tmpDirName, itemZipFileName));
+
+    return {
+      name: item.name,
+      itemType: 'catalog',
+      location: itemZipFileName
+    };
+  };
 }
 
 async function createTmpDir(destDir: string, destFileName: string): Promise<string> {
@@ -54,7 +91,7 @@ async function createDirIfNotExists(parent: string, dir: string): Promise<boolea
     });
 }
 
-async function createZipOfZips(destPath: string, destFileName: string, tmpPath: string, provisioningItems: any[], context: BuilderContext) {
+async function createZipOfZips(destPath: string, destFileName: string, tmpPath: string, provisioningItems: ProvisioningItem[]) {
   const manifest = {
     name: 'catalog',
     provisioningItems: provisioningItems
@@ -71,17 +108,8 @@ async function createZipOfZips(destPath: string, destFileName: string, tmpPath: 
   );
 
   const zozPath = path.resolve(destPath, destFileName);
-
-  return new Promise((resolve, reject) => {
-    zipFolder(zozContentPath, zozPath, err => {
-      if (err) {
-        reject(err);
-      } else {
-        context.logger.info(`Created provisioning package: ${zozPath}`)
-        resolve();
-      }
-    });
-  });
+  await zipFolder(zozContentPath, zozPath);
+  return zozPath;
 }
 
 async function createManifest(dir: string, manifest) {

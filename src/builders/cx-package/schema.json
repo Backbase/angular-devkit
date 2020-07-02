@@ -15,7 +15,7 @@
       "default": "package.zip"
     },
     "items": {
-      "description": "List of items to bundle in in the package zip",
+      "description": "List of provisioning items to bundle in in the package zip",
       "type": "array",
       "minItems": 1,
       "items": {
@@ -25,17 +25,40 @@
             "type": "object",
             "properties": {
               "type": {
+                "description": "Discriminator identifying this `items` entry as a CX page",
                 "enum": ["page"]
               },
               "name": {
+                "description": "Name of the catalog item",
+                "type": "string"
+              },
+              "builtSources": {
+                "description": "Path (relative to the Angular workspace root) to directory used as the `outputPath` of the `ng build` command",
+                "type": "string"
+              },
+              "entryFile": {
+                "description": "Path (relative to the Angular workspace root) to the *.hbs file to be served by CX as the entry point for this page",
+                "type": "string"
+              },
+              "modelXml": {
+                "description": "Path (relative to the Angular workspace root) to the model.xml file for this page",
+                "type": "string"
+              },
+              "icon": {
+                "description": "Path (relative to the Angular workspace root) to the image file to use as the catalog icon for this page",
                 "type": "string"
               }
             },
-            "required": ["type", "name"],
+            "required": ["type", "name", "builtSources", "entryFile", "modelXml", "icon"],
             "additionalProperties": false
           }
         ]
       }
+    },
+    "skipCleanUp": {
+      "description": "Whether to skip deleting tmp files created during packaging (useful for debugging)",
+      "type": "boolean",
+      "default": false
     }
   },
   "required": ["items"],
