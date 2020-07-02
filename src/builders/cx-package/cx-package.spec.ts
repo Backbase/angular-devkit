@@ -3,10 +3,10 @@ import { TestingArchitectHost } from '@angular-devkit/architect/testing';
 import { logging, schema } from '@angular-devkit/core';
 
 import * as path from 'path';
-import {CxPackageBuilderOptions} from "./schema";
-import {promisify} from "util";
+import { CxPackageBuilderOptions } from './schema';
+import { promisify } from 'util';
 
-const rimraf = promisify( require('rimraf') );
+const rimraf = promisify(require('rimraf'));
 
 const cxPackageBuilderName = '@backbase/angular-devkit:cx-package';
 /**
@@ -39,27 +39,33 @@ describe('cx-package builder', () => {
 
   it('can run', async () => {
     const options: CxPackageBuilderOptions = {
-      items: [{
-        type: 'page',
-        name: 'test-page',
-        entryFile: 'resources/index.hbs',
-        icon: 'resources/icon.png',
-        builtSources: 'build',
-        modelXml: 'resources/model.xml'
-      }],
-      skipCleanUp: true
+      items: [
+        {
+          type: 'page',
+          name: 'test-page',
+          entryFile: 'resources/index.hbs',
+          icon: 'resources/icon.png',
+          builtSources: 'build',
+          modelXml: 'resources/model.xml',
+        },
+      ],
+      skipCleanUp: true,
     };
 
     const logger = new logging.Logger('');
     const infoLogs = [];
-    logger.subscribe(ev => {
+    logger.subscribe((ev) => {
       if (ev.level === 'info') {
         infoLogs.push(ev.message);
       }
     });
 
     // A "run" can have multiple outputs, and contains progress information.
-    const run = await architect.scheduleBuilder(cxPackageBuilderName, <any>options, {logger});
+    const run = await architect.scheduleBuilder(
+      cxPackageBuilderName,
+      <any>options,
+      { logger }
+    );
 
     // The "result" member (of type BuilderOutput) is the next output.
     const output = await run.result;
@@ -71,8 +77,15 @@ describe('cx-package builder', () => {
 
     expect(output.success).toBe(true);
 
-    const expectedOutputPath = path.resolve(testDir, 'dist', 'provisioning-packages', 'package.zip');
+    const expectedOutputPath = path.resolve(
+      testDir,
+      'dist',
+      'provisioning-packages',
+      'package.zip'
+    );
 
-    expect(infoLogs).toContain(`Created provisioning package: ${expectedOutputPath}`);
+    expect(infoLogs).toContain(
+      `Created provisioning package: ${expectedOutputPath}`
+    );
   });
 });

@@ -1,56 +1,82 @@
-import { BuilderContext, BuilderOutput, createBuilder } from '@angular-devkit/architect';
-import { CxPackageBuilderOptions } from "./schema";
-import {CxPackageBuilderOptionsItem, ProvisioningItem, ProvisioningItemFactory} from './types';
+import {
+  BuilderContext,
+  BuilderOutput,
+  createBuilder,
+} from '@angular-devkit/architect';
+import { CxPackageBuilderOptions } from './schema';
+import {
+  CxPackageBuilderOptionsItem,
+  ProvisioningItem,
+  ProvisioningItemFactory,
+} from './types';
 import * as fs from 'fs';
 import * as path from 'path';
-import { JsonObject } from "@angular-devkit/core";
-import { promisify } from "util";
-import {createPageContent} from "./item-builders/page-builder";
-const zipFolder = promisify( require('zip-folder') );
-const rimraf = promisify( require('rimraf') );
+import { JsonObject } from '@angular-devkit/core';
+import { promisify } from 'util';
+import { createPageContent } from './item-builders/page-builder';
+const zipFolder = promisify(require('zip-folder'));
+const rimraf = promisify(require('rimraf'));
 
 export default createBuilder(cxPackageBuilder);
 
 async function cxPackageBuilder(
-    options: CxPackageBuilderOptions & JsonObject,
-    context: BuilderContext,
+  options: CxPackageBuilderOptions & JsonObject,
+  context: BuilderContext
 ): Promise<BuilderOutput> {
   const destDir = path.resolve(context.workspaceRoot, options.destDir);
   const { destFileName, items, skipCleanUp } = options;
 
-  await fs.promises.mkdir(destDir, {recursive: true});
+  await fs.promises.mkdir(destDir, { recursive: true });
 
   const tmpDirName = await createTmpDir(destDir, destFileName);
 
-  const createProvisioningItem = createProvisioningItemFactory(tmpDirName, context);
+  const createProvisioningItem = createProvisioningItemFactory(
+    tmpDirName,
+    context
+  );
 
-  const provisioningItems = await Promise.all(items.map(createProvisioningItem));
+  const provisioningItems = await Promise.all(
+    items.map(createProvisioningItem)
+  );
 
-  const packageFile = await createZipOfZips(destDir, destFileName, tmpDirName, provisioningItems);
+  const packageFile = await createZipOfZips(
+    destDir,
+    destFileName,
+    tmpDirName,
+    provisioningItems
+  );
   context.logger.info(`Created provisioning package: ${packageFile}`);
 
   if (skipCleanUp) {
     context.logger.debug(`Skipping cleaning up tmp dir ${tmpDirName}`);
   } else {
     context.logger.debug('Cleaning up...');
-    await rimraf(tmpDirName).catch(error => {
+    await rimraf(tmpDirName).catch((error) => {
       // non-fatal, just log
       context.logger.warn(`Error deleting tmp dir ${tmpDirName}: ${error}`);
     });
   }
 
   return {
-    success: true
+    success: true,
   };
 }
 
-function createProvisioningItemFactory(tmpDirName: string, context: BuilderContext): ProvisioningItemFactory {
-  return async item => {
+function createProvisioningItemFactory(
+  tmpDirName: string,
+  context: BuilderContext
+): ProvisioningItemFactory {
+  return async (item) => {
     const kebabCaseName = item.name.replace(/\s+/g, '-');
-    const itemZipContentsDir = await createTmpDir(tmpDirName, `${kebabCaseName}-${item.type}`);
+    const itemZipContentsDir = await createTmpDir(
+      tmpDirName,
+      `${kebabCaseName}-${item.type}`
+    );
 
     const itemZipFileName = `${path.basename(itemZipContentsDir, '.tmp')}.zip`;
-    context.logger.debug(`Creating provisioning item "${item.name}" as ${itemZipFileName}...`);
+    context.logger.debug(
+      `Creating provisioning item "${item.name}" as ${itemZipFileName}...`
+    );
 
     switch (item.type) {
       case 'page':
@@ -58,32 +84,44 @@ function createProvisioningItemFactory(tmpDirName: string, context: BuilderConte
         break;
       default:
         // Default for completeness, but this should be picked up by the schema validation before we started
-        throw new Error(`Invalid type for provisioning item "${item.name}": "${item.type}"`);
+        throw new Error(
+          `Invalid type for provisioning item "${item.name}": "${item.type}"`
+        );
     }
 
-    await zipFolder(itemZipContentsDir, path.resolve(tmpDirName, itemZipFileName));
+    await zipFolder(
+      itemZipContentsDir,
+      path.resolve(tmpDirName, itemZipFileName)
+    );
 
     return {
       name: item.name,
       itemType: 'catalog',
-      location: itemZipFileName
+      location: itemZipFileName,
     };
   };
 }
 
-async function createTmpDir(destDir: string, destFileName: string): Promise<string> {
+async function createTmpDir(
+  destDir: string,
+  destFileName: string
+): Promise<string> {
   let tmpDirName: string;
   let i = 0;
   do {
     tmpDirName = path.resolve(destDir, `${destFileName}.${i++}.tmp`);
-  } while (!await createDirIfNotExists(destDir, tmpDirName));
+  } while (!(await createDirIfNotExists(destDir, tmpDirName)));
   return tmpDirName;
 }
 
-async function createDirIfNotExists(parent: string, dir: string): Promise<boolean> {
-  return fs.promises.mkdir(dir)
+async function createDirIfNotExists(
+  parent: string,
+  dir: string
+): Promise<boolean> {
+  return fs.promises
+    .mkdir(dir)
     .then(() => true)
-    .catch(err => {
+    .catch((err) => {
       if (err?.code === 'EEXIST') {
         return false;
       }
@@ -91,20 +129,27 @@ async function createDirIfNotExists(parent: string, dir: string): Promise<boolea
     });
 }
 
-async function createZipOfZips(destPath: string, destFileName: string, tmpPath: string, provisioningItems: ProvisioningItem[]) {
+async function createZipOfZips(
+  destPath: string,
+  destFileName: string,
+  tmpPath: string,
+  provisioningItems: ProvisioningItem[]
+) {
   const manifest = {
     name: 'catalog',
-    provisioningItems: provisioningItems
+    provisioningItems: provisioningItems,
   };
 
   const zozContentPath = `${tmpPath}/zoz/${destFileName}-content`;
-  await fs.promises.mkdir(zozContentPath, {recursive: true});
+  await fs.promises.mkdir(zozContentPath, { recursive: true });
   await createManifest(zozContentPath, manifest);
 
   await Promise.all(
-      provisioningItems
-        .map(item => item.location)
-        .map(zip => fs.promises.rename(`${tmpPath}/${zip}`, `${zozContentPath}/${zip}`))
+    provisioningItems
+      .map((item) => item.location)
+      .map((zip) =>
+        fs.promises.rename(`${tmpPath}/${zip}`, `${zozContentPath}/${zip}`)
+      )
   );
 
   const zozPath = path.resolve(destPath, destFileName);
@@ -114,8 +159,8 @@ async function createZipOfZips(destPath: string, destFileName: string, tmpPath: 
 
 async function createManifest(dir: string, manifest) {
   await fs.promises.writeFile(
-      `${dir}/manifest.json`,
-      JSON.stringify(manifest, undefined, 2),
-      'utf8'
+    `${dir}/manifest.json`,
+    JSON.stringify(manifest, undefined, 2),
+    'utf8'
   );
 }

@@ -49,7 +49,14 @@
                 "type": "string"
               }
             },
-            "required": ["type", "name", "builtSources", "entryFile", "modelXml", "icon"],
+            "required": [
+              "type",
+              "name",
+              "builtSources",
+              "entryFile",
+              "modelXml",
+              "icon"
+            ],
             "additionalProperties": false
           }
         ]
