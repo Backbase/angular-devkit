@@ -5,6 +5,7 @@ import { logging, schema } from '@angular-devkit/core';
 import * as path from 'path';
 import { CxPackageBuilderOptions } from './schema';
 import { promisify } from 'util';
+import { expectZipContents } from '../test-utils';
 
 const rimraf = promisify(require('rimraf'));
 
@@ -82,11 +83,13 @@ describe('cx-package builder', () => {
       testDir,
       'dist',
       'provisioning-packages',
-      'package.zip'
+      options.destFileName
     );
 
     expect(infoLogs).toContain(
       `Created provisioning package: ${expectedOutputPath}`
     );
+
+    await expectZipContents(expectedOutputPath, path.resolve(testDir, 'expected'));
   });
 });
