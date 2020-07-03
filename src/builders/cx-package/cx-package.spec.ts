@@ -90,6 +90,9 @@ describe('cx-package builder', () => {
       `Created provisioning package: ${expectedOutputPath}`
     );
 
-    await expectZipContents(expectedOutputPath, path.resolve(testDir, 'expected'));
+    await expectZipContents(
+      expectedOutputPath,
+      path.resolve(testDir, 'expected')
+    );
   });
 });
