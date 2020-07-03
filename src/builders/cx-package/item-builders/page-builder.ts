@@ -92,18 +92,14 @@ function getPageProperties(modelXml: JSDOM) {
     );
   }
 
-  const page: any = Array.from(catalog.children).find(
-    (elem: any) => elem.tagName === 'page'
-  );
+  const page: any = findChild(catalog, 'page');
   if (!page) {
     throw new Error(
       'Invalid model.xml - expected a <page> child of the <catalog> document element'
     );
   }
 
-  let properties = Array.from(page.children).find(
-    (elem: any) => elem.tagName === 'properties'
-  );
+  let properties = findChild(page, 'properties');
 
   if (!properties) {
     properties = modelXml.window.document.createElement('properties');
@@ -114,15 +110,16 @@ function getPageProperties(modelXml: JSDOM) {
 }
 
 function setProperty(properties, name, value) {
-  let propertyElem: any = Array.from(properties.children).find(
-    (elem: any) =>
-      elem.tagName === 'property' && elem.getAttribute('name') === name
-  );
+  const propertyMatcher = (elem: any) =>
+    elem.tagName === 'property' && elem.getAttribute('name') === name;
+
+  let propertyElem: any = findChild(properties, propertyMatcher);
   if (!propertyElem) {
     propertyElem = properties.ownerDocument.createElement('property');
     propertyElem.setAttribute('name', name);
     properties.appendChild(propertyElem);
   }
+
   let valueElem: any = Array.from(propertyElem.children).find(
     (elem: any) => elem.tagName === 'value'
   );
@@ -132,4 +129,15 @@ function setProperty(properties, name, value) {
   }
   valueElem.setAttribute('type', 'string');
   valueElem.textContent = value;
+}
+
+function findChild(
+  parentElem: any,
+  predicateOrTagName: ((elem: any) => boolean) | string
+) {
+  const predicate =
+    'string' === typeof predicateOrTagName
+      ? (elem: any) => elem.tagName === predicateOrTagName
+      : predicateOrTagName;
+  return Array.from(parentElem.children).find(predicate);
 }
