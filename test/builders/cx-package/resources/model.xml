@@ -2,6 +2,9 @@
     <page>
         <name>whatever</name>
         <properties>
+            <property name="thumbnailUrl">
+                <value type="string">foo.png</value>
+            </property>
             <property name="Description">
                 <value type="string">Master page for the Employee Web App single page application</value>
             </property>
