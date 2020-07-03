@@ -37,7 +37,7 @@ describe('cx-package builder', () => {
     await architectHost.addBuilderFromPackage(rootDir);
   });
 
-  it('can run', async () => {
+  it('packages all items', async () => {
     const options: CxPackageBuilderOptions = {
       items: [
         {
@@ -49,6 +49,7 @@ describe('cx-package builder', () => {
           modelXml: 'resources/model.xml',
         },
       ],
+      destFileName: 'my-awesome-package.zip',
       skipCleanUp: true,
     };
 

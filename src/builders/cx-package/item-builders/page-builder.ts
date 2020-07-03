@@ -1,87 +1,105 @@
-import { CxPackageBuilderOptionsItem } from '../types';
-import { BuilderContext } from '@angular-devkit/architect';
 import * as path from 'path';
 import * as fs from 'fs';
 import { JSDOM } from 'jsdom';
 import { promisify } from 'util';
+import { ItemBuilder, ItemBuilderContext } from '../types';
 
 const ncp = promisify(require('ncp'));
 
-export async function createPageContent(
-  item: CxPackageBuilderOptionsItem,
-  itemZipContentsDir: string,
-  context: BuilderContext
-) {
-  const builtSources = path.resolve(context.workspaceRoot, item.builtSources);
+export const createPageContent: ItemBuilder = async (
+  context: ItemBuilderContext
+) => {
+  const builtSources = path.resolve(
+    context.builderContext.workspaceRoot,
+    context.item.builtSources
+  );
   const indexHtmlFile = path.resolve(builtSources, 'index.html');
 
-  await copyBuiltSourcesToZipContentsDir();
-  const entryFileName = await createEntryFileInZipContentsDir();
-  const iconFileName = await copyIconToZipContentsDir();
-  await createModelXml(entryFileName, iconFileName);
+  await copyBuiltSourcesToZipContentsDir(
+    builtSources,
+    context.destDir,
+    (file) => file !== indexHtmlFile
+  );
+  const entryFileName = await createEntryFileInZipContentsDir(
+    indexHtmlFile,
+    context
+  );
+  const iconFileName = await copyIconToZipContentsDir(context);
+  await createModelXml(entryFileName, iconFileName, context);
+};
 
-  return;
+async function copyBuiltSourcesToZipContentsDir(
+  builtSources: string,
+  itemZipContentsDir: string,
+  copyFilter: (file: string) => boolean
+) {
+  await ncp(builtSources, itemZipContentsDir, { filter: copyFilter });
+}
 
-  async function copyBuiltSourcesToZipContentsDir() {
-    const copyFilter = (file) => file !== indexHtmlFile;
-    await ncp(builtSources, itemZipContentsDir, { filter: copyFilter });
-  }
+async function createEntryFileInZipContentsDir(
+  indexHtmlFile: string,
+  context: ItemBuilderContext
+): Promise<string> {
+  const { item, destDir, builderContext } = context;
+  const indexHtmlContent = await fs.promises.readFile(indexHtmlFile, 'utf8');
 
-  async function createEntryFileInZipContentsDir(): Promise<string> {
-    const indexHtmlContent = await fs.promises.readFile(indexHtmlFile, 'utf8');
+  const styles = indexHtmlContent.match(/<link.*?href=".*?>/g).join('\n');
+  const scripts = indexHtmlContent
+    .match(/<script.*?src=".*?><\/script>/g)
+    .join('\n');
 
-    const styles = indexHtmlContent.match(/<link.*?href=".*?>/g).join('\n');
-    const scripts = indexHtmlContent
-      .match(/<script.*?src=".*?><\/script>/g)
-      .join('\n');
+  const entryFileSource = path.resolve(
+    builderContext.workspaceRoot,
+    item.entryFile
+  );
+  const entryFileName = path.basename(entryFileSource);
+  const entryFileContent = (await fs.promises.readFile(entryFileSource, 'utf8'))
+    .replace('{{styles}}', styles)
+    .replace('{{scripts}}', scripts);
 
-    const entryFileSource = path.resolve(context.workspaceRoot, item.entryFile);
-    const entryFileName = path.basename(entryFileSource);
-    const entryFileContent = (
-      await fs.promises.readFile(entryFileSource, 'utf8')
-    )
-      .replace('{{styles}}', styles)
-      .replace('{{scripts}}', scripts);
+  const entryFileDest = path.resolve(destDir, entryFileName);
 
-    const entryFileDest = path.resolve(itemZipContentsDir, entryFileName);
+  await fs.promises.writeFile(entryFileDest, entryFileContent, 'utf8');
 
-    await fs.promises.writeFile(entryFileDest, entryFileContent, 'utf8');
+  return entryFileName;
+}
 
-    return entryFileName;
-  }
+async function copyIconToZipContentsDir(
+  context: ItemBuilderContext
+): Promise<string> {
+  const { item, destDir, builderContext } = context;
+  const icon = path.resolve(builderContext.workspaceRoot, item.icon);
+  const iconFileName = path.basename(icon);
+  await fs.promises.copyFile(icon, path.resolve(destDir, iconFileName));
+  return iconFileName;
+}
 
-  async function copyIconToZipContentsDir(): Promise<string> {
-    const icon = path.resolve(context.workspaceRoot, item.icon);
-    const iconFileName = path.basename(icon);
-    await fs.promises.copyFile(
-      icon,
-      path.resolve(itemZipContentsDir, iconFileName)
-    );
-    return iconFileName;
-  }
+async function createModelXml(
+  entryFileName: string,
+  iconFileName: string,
+  context: ItemBuilderContext
+) {
+  const modelXml: JSDOM = await readModelXml(context);
 
-  async function createModelXml(entryFileName, iconFileName) {
-    const modelXml: JSDOM = await readModelXml();
+  const properties = getPageProperties(modelXml);
 
-    const properties = getPageProperties(modelXml);
+  setProperty(properties, 'src', `$(itemRoot)/${entryFileName}`);
+  setProperty(properties, 'thumbnailUrl', `$(itemRoot)/${iconFileName}`);
 
-    setProperty(properties, 'src', `$(itemRoot)/${entryFileName}`);
-    setProperty(properties, 'thumbnailUrl', `$(itemRoot)/${iconFileName}`);
+  await writeModelXml(modelXml, context.destDir);
+}
 
-    await writeModelXml(modelXml);
-  }
+async function readModelXml(context: ItemBuilderContext): Promise<JSDOM> {
+  const { item, builderContext } = context;
+  const modelXml = path.resolve(builderContext.workspaceRoot, item.modelXml);
+  return JSDOM.fromFile(modelXml, {
+    contentType: 'text/xml',
+  });
+}
 
-  async function readModelXml(): Promise<JSDOM> {
-    const modelXml = path.resolve(context.workspaceRoot, item.modelXml);
-    return JSDOM.fromFile(modelXml, {
-      contentType: 'text/xml',
-    });
-  }
-
-  async function writeModelXml(modelXml: JSDOM) {
-    const dest = path.resolve(itemZipContentsDir, 'model.xml');
-    await fs.promises.writeFile(dest, modelXml.serialize(), 'utf8');
-  }
+async function writeModelXml(modelXml: JSDOM, destDir: string) {
+  const dest = path.resolve(destDir, 'model.xml');
+  await fs.promises.writeFile(dest, modelXml.serialize(), 'utf8');
 }
 
 function getPageProperties(modelXml: JSDOM) {

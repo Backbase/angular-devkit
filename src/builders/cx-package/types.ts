@@ -1,4 +1,5 @@
 import { CxPackageBuilderOptions } from './schema';
+import { BuilderContext } from '@angular-devkit/architect';
 
 export interface ProvisioningItem {
   name: string;
@@ -13,3 +14,11 @@ export type CxPackageBuilderOptionsItem = CxPackageBuilderOptions['items'][numbe
 export type ProvisioningItemFactory = (
   item: CxPackageBuilderOptionsItem
 ) => Promise<ProvisioningItem>;
+
+export interface ItemBuilderContext {
+  item: CxPackageBuilderOptionsItem;
+  destDir: string;
+  builderContext: BuilderContext;
+}
+
+export type ItemBuilder = (ItemBuilderContext) => Promise<void>;

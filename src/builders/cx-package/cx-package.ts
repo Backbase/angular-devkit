@@ -6,6 +6,7 @@ import {
 import { CxPackageBuilderOptions } from './schema';
 import {
   CxPackageBuilderOptionsItem,
+  ItemBuilder,
   ProvisioningItem,
   ProvisioningItemFactory,
 } from './types';
@@ -62,6 +63,18 @@ async function cxPackageBuilder(
   };
 }
 
+function getItemBuilder(item: CxPackageBuilderOptionsItem): ItemBuilder {
+  switch (item.type) {
+    case 'page':
+      return createPageContent;
+    default:
+      // Default for completeness, but this should be picked up by the schema validation before we started
+      throw new Error(
+        `Invalid type for provisioning item "${item.name}": "${item.type}"`
+      );
+  }
+}
+
 function createProvisioningItemFactory(
   tmpDirName: string,
   context: BuilderContext
@@ -77,17 +90,12 @@ function createProvisioningItemFactory(
     context.logger.debug(
       `Creating provisioning item "${item.name}" as ${itemZipFileName}...`
     );
-
-    switch (item.type) {
-      case 'page':
-        await createPageContent(item, itemZipContentsDir, context);
-        break;
-      default:
-        // Default for completeness, but this should be picked up by the schema validation before we started
-        throw new Error(
-          `Invalid type for provisioning item "${item.name}": "${item.type}"`
-        );
-    }
+    const itemBuilder = getItemBuilder(item);
+    await itemBuilder({
+      item,
+      destDir: itemZipContentsDir,
+      builderContext: context,
+    });
 
     await zipFolder(
       itemZipContentsDir,
