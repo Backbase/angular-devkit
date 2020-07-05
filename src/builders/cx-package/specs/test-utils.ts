@@ -133,7 +133,10 @@ async function compareEntry(
     }
   } catch (error) {
     if (error.code === 'ENOENT') {
-      const relativePath = path.relative(expectedRootZipContentsDir, expectedPath);
+      const relativePath = path.relative(
+        expectedRootZipContentsDir,
+        expectedPath
+      );
       fail(`Unexpected file in zip: ${relativePath}`);
     } else {
       throw error;

@@ -14,7 +14,7 @@ const rimraf = promisify(require('rimraf'));
  */
 const testDir = path.resolve(
   rootDir,
-  'test',
+  'test-resources',
   'builders',
   'cx-package',
   'page-builder'
