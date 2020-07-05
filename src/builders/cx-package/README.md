@@ -12,4 +12,3 @@ See the [schema.json](./schema.json) file for the configuration options availabl
 
 Note that this builder does not invoke `ng build` - this must be done before using
 this builder to create a CX package.
-

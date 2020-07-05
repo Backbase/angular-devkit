@@ -155,5 +155,5 @@ function findChild(
     'string' === typeof predicateOrTagName
       ? (elem: Element) => elem.tagName === predicateOrTagName
       : predicateOrTagName;
-  return <Element> Array.from(parentElem.childNodes).find(predicate);
+  return <Element>Array.from(parentElem.childNodes).find(predicate);
 }
