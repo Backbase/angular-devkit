@@ -2,6 +2,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as unzipper from 'unzipper';
 
+export const cxPackageBuilderName = '@backbase/angular-devkit:cx-package';
+/**
+ * Absolute path to the dir containing the project's package.json file.
+ */
+export const rootDir = path.resolve(__dirname, '..', '..', '..', '..');
+
 /**
  * Verify that the given zip has the given content.
  *
@@ -98,12 +104,12 @@ async function compareZipContents(
           resolveIfAppropriate();
         }
       })
-      .on('finish', (ev) => {
+      .on('finish', () => {
         finished = true;
         resolveIfAppropriate();
       })
-      .on('error', (ev) => {
-        reject(ev);
+      .on('error', (error) => {
+        reject(error);
       });
   });
 }
@@ -113,10 +119,9 @@ async function compareEntry(
   expectedZipContentDir: string,
   expectedRootZipContentsDir: string
 ) {
+  const expectedPath = path.resolve(expectedZipContentDir, entry.path);
   try {
-    const expectedPath = path.resolve(expectedZipContentDir, entry.path);
     const expectedContent = await fs.promises.readFile(expectedPath);
-
     const actualContent: Buffer = await entry.buffer();
 
     if (isTextFile(entry.path)) {
@@ -128,7 +133,8 @@ async function compareEntry(
     }
   } catch (error) {
     if (error.code === 'ENOENT') {
-      fail(`Unexpected file in zip: ${entry.path}`);
+      const relativePath = path.relative(expectedRootZipContentsDir, expectedPath);
+      fail(`Unexpected file in zip: ${relativePath}`);
     } else {
       throw error;
     }

@@ -3,23 +3,24 @@ import { TestingArchitectHost } from '@angular-devkit/architect/testing';
 import { logging, schema } from '@angular-devkit/core';
 
 import * as path from 'path';
-import { CxPackageBuilderOptions } from './schema';
+import { CxPackageBuilderOptions } from '../schema';
 import { promisify } from 'util';
-import { expectZipContents } from '../test-utils';
+import { expectZipContents, rootDir, cxPackageBuilderName } from './test-utils';
 
 const rimraf = promisify(require('rimraf'));
 
-const cxPackageBuilderName = '@backbase/angular-devkit:cx-package';
-/**
- * Absolute path to the dir containing the project's package.json file.
- */
-const rootDir = path.resolve(__dirname, '..', '..', '..');
 /**
  * Path to the dir containing test assets.
  */
-const testDir = path.resolve(rootDir, 'test', 'builders', 'cx-package');
+const testDir = path.resolve(
+  rootDir,
+  'test',
+  'builders',
+  'cx-package',
+  'page-builder'
+);
 
-describe('cx-package builder', () => {
+describe('cx-package builder with page item', () => {
   let architect: Architect;
   let architectHost: TestingArchitectHost;
 
@@ -38,7 +39,7 @@ describe('cx-package builder', () => {
     await architectHost.addBuilderFromPackage(rootDir);
   });
 
-  it('packages all items', async () => {
+  it('should correctly package the page', async () => {
     const options: CxPackageBuilderOptions = {
       items: [
         {
