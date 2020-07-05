@@ -48,38 +48,64 @@ async function compareZipContents(
   zipStream,
   expectedZipContentsDir: string,
   expectedRootZipContentsDir?: string
-) {
+): Promise<string[]> {
   if (!expectedRootZipContentsDir) {
     expectedRootZipContentsDir = expectedZipContentsDir;
   }
-  const entries = [];
 
-  const zip = zipStream.pipe(unzipper.Parse({ forceStream: true }));
+  const zipParser = zipStream.pipe(unzipper.Parse());
 
-  for await (const entry of zip) {
-    const type = entry.type;
+  return new Promise((resolve, reject) => {
+    const entries = [];
 
-    if (type === 'Directory') {
-      // Ignore dirs
-      entry.autodrain();
-    } else if (entry.path.endsWith('.zip')) {
-      const childZipEntries = await compareZipContents(
-        entry,
-        path.resolve(expectedZipContentsDir, entry.path),
-        expectedRootZipContentsDir
-      );
-      entries.push(...childZipEntries);
-    } else {
-      entries.push(entry.path);
-      await compareEntry(
-        entry,
-        expectedZipContentsDir,
-        expectedRootZipContentsDir
-      );
-    }
-  }
+    // The 'finish' event can fire whilst we're awaiting the
+    // async processing of an entry stream, so only resolve when
+    // all entries have finished being processed, too:
+    let finished = false;
+    let processingEntries = 0;
+    const resolveIfAppropriate = () => {
+      if (finished && !processingEntries) {
+        resolve(entries);
+      }
+    };
 
-  return entries;
+    zipParser
+      .on('entry', async function (entry) {
+        const type = entry.type;
+
+        if (type === 'Directory') {
+          // Ignore dirs
+          entry.autodrain();
+        } else if (entry.path.endsWith('.zip')) {
+          ++processingEntries;
+          const childZipEntries = await compareZipContents(
+            entry,
+            path.resolve(expectedZipContentsDir, entry.path),
+            expectedRootZipContentsDir
+          );
+          entries.push(...childZipEntries);
+          --processingEntries;
+          resolveIfAppropriate();
+        } else {
+          ++processingEntries;
+          entries.push(entry.path);
+          await compareEntry(
+            entry,
+            expectedZipContentsDir,
+            expectedRootZipContentsDir
+          );
+          --processingEntries;
+          resolveIfAppropriate();
+        }
+      })
+      .on('finish', (ev) => {
+        finished = true;
+        resolveIfAppropriate();
+      })
+      .on('error', (ev) => {
+        reject(ev);
+      });
+  });
 }
 
 async function compareEntry(
@@ -87,46 +113,25 @@ async function compareEntry(
   expectedZipContentDir: string,
   expectedRootZipContentsDir: string
 ) {
-  const expectedPath = path.resolve(expectedZipContentDir, entry.path);
-  // For some reason trying to do the below with fs.promises causes the original
-  // zip stream to stop emitting events so we only ever see the manifest.json entry
-  // and no others...
-  //
-  // const expectedContent = await fs.promises.readFile(expectedPath).catch(error => {
-  //   if (error.code === 'ENOENT') {
-  //     fail(`Unexpected file in zip: ${entry.path}`);
-  //   } else {
-  //     throw error;
-  //   }
-  // });
-  //
-  // ...therefore using readFileSync for now:
-  //
-  const expectedContent = (function () {
-    try {
-      return fs.readFileSync(expectedPath);
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        fail(
-          `Unexpected file in zip: ${path.relative(
-            expectedRootZipContentsDir,
-            expectedPath
-          )}`
-        );
-      } else {
-        throw error;
-      }
+  try {
+    const expectedPath = path.resolve(expectedZipContentDir, entry.path);
+    const expectedContent = await fs.promises.readFile(expectedPath);
+
+    const actualContent: Buffer = await entry.buffer();
+
+    if (isTextFile(entry.path)) {
+      expect(actualContent.toString('utf8').trim()).toEqual(
+        expectedContent.toString('utf8').trim()
+      );
+    } else {
+      expect(actualContent).toEqual(expectedContent);
     }
-  })();
-
-  const actualContent: Buffer = await entry.buffer();
-
-  if (isTextFile(entry.path)) {
-    expect(actualContent.toString('utf8').trim()).toEqual(
-      expectedContent.toString('utf8').trim()
-    );
-  } else {
-    expect(actualContent).toEqual(expectedContent);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      fail(`Unexpected file in zip: ${entry.path}`);
+    } else {
+      throw error;
+    }
   }
 }
 
