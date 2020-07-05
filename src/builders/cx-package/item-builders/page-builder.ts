@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import { JSDOM } from 'jsdom';
+import { DOMParser, XMLSerializer } from 'xmldom';
 import { promisify } from 'util';
 import { ItemBuilder, ItemBuilderContext } from '../types';
 
@@ -79,7 +79,7 @@ async function createModelXml(
   iconFileName: string,
   context: ItemBuilderContext
 ) {
-  const modelXml: JSDOM = await readModelXml(context);
+  const modelXml: Document = await readModelXml(context);
 
   const properties = getPageProperties(modelXml);
 
@@ -89,28 +89,28 @@ async function createModelXml(
   await writeModelXml(modelXml, context.destDir);
 }
 
-async function readModelXml(context: ItemBuilderContext): Promise<JSDOM> {
+async function readModelXml(context: ItemBuilderContext): Promise<Document> {
   const { item, builderContext } = context;
   const modelXml = path.resolve(builderContext.workspaceRoot, item.modelXml);
-  return JSDOM.fromFile(modelXml, {
-    contentType: 'text/xml',
-  });
+  const modelXmlContent = await fs.promises.readFile(modelXml, 'utf8');
+  return new DOMParser().parseFromString(modelXmlContent);
 }
 
-async function writeModelXml(modelXml: JSDOM, destDir: string) {
+async function writeModelXml(modelXml: Document, destDir: string) {
   const dest = path.resolve(destDir, 'model.xml');
-  await fs.promises.writeFile(dest, modelXml.serialize(), 'utf8');
+  const content = new XMLSerializer().serializeToString(modelXml);
+  await fs.promises.writeFile(dest, content, 'utf8');
 }
 
-function getPageProperties(modelXml: JSDOM) {
-  const catalog = modelXml.window.document.documentElement;
+function getPageProperties(modelXml: Document) {
+  const catalog = modelXml.documentElement;
   if (catalog.tagName !== 'catalog') {
     throw new Error(
       `Invalid model.xml - expected document element to have tag name 'catalog', but was: '${catalog.tagName}'`
     );
   }
 
-  const page: any = findChild(catalog, 'page');
+  const page: Element = findChild(catalog, 'page');
   if (!page) {
     throw new Error(
       'Invalid model.xml - expected a <page> child of the <catalog> document element'
@@ -120,7 +120,7 @@ function getPageProperties(modelXml: JSDOM) {
   let properties = findChild(page, 'properties');
 
   if (!properties) {
-    properties = modelXml.window.document.createElement('properties');
+    properties = modelXml.createElement('properties');
     page.appendChild(properties);
   }
 
@@ -128,19 +128,17 @@ function getPageProperties(modelXml: JSDOM) {
 }
 
 function setProperty(properties, name, value) {
-  const propertyMatcher = (elem: any) =>
+  const propertyMatcher = (elem) =>
     elem.tagName === 'property' && elem.getAttribute('name') === name;
 
-  let propertyElem: any = findChild(properties, propertyMatcher);
+  let propertyElem: Element = findChild(properties, propertyMatcher);
   if (!propertyElem) {
     propertyElem = properties.ownerDocument.createElement('property');
     propertyElem.setAttribute('name', name);
     properties.appendChild(propertyElem);
   }
 
-  let valueElem: any = Array.from(propertyElem.children).find(
-    (elem: any) => elem.tagName === 'value'
-  );
+  let valueElem: Element = findChild(propertyElem, 'value');
   if (!valueElem) {
     valueElem = propertyElem.ownerDocument.createElement('value');
     propertyElem.appendChild(valueElem);
@@ -150,12 +148,12 @@ function setProperty(properties, name, value) {
 }
 
 function findChild(
-  parentElem: any,
-  predicateOrTagName: ((elem: any) => boolean) | string
-) {
+  parentElem: Element,
+  predicateOrTagName: ((elem: Element) => boolean) | string
+): Element {
   const predicate =
     'string' === typeof predicateOrTagName
-      ? (elem: any) => elem.tagName === predicateOrTagName
+      ? (elem: Element) => elem.tagName === predicateOrTagName
       : predicateOrTagName;
-  return Array.from(parentElem.children).find(predicate);
+  return <Element> Array.from(parentElem.childNodes).find(predicate);
 }

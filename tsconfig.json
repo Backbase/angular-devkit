@@ -9,7 +9,7 @@
     "typeRoots": ["node_modules/@types"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "lib": ["es2018"],
+    "lib": ["es2018", "dom"],
     "declaration": true,
     "baseUrl": ".",
     "rootDir": "."

@@ -34,9 +34,9 @@
     "unzipper": "^0.10.11"
   },
   "dependencies": {
-    "jsdom": "^16.2.2",
     "ncp": "^2.0.0",
     "rimraf": "^3.0.2",
+    "xmldom": "^0.3.0",
     "zip-folder": "^1.0.0"
   },
   "builders": "./src/builders/builders.json"
