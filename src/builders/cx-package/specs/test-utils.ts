@@ -1,6 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as unzipper from 'unzipper';
+import { Volume } from 'memfs/lib/volume';
+import * as glob from 'glob';
 
 export const cxPackageBuilderName = '@backbase/angular-devkit:cx-package';
 /**
@@ -14,16 +16,54 @@ export const rootDir = path.resolve(__dirname, '..', '..', '..', '..');
  * @param zipFile Path to the zip file under test
  * @param expectedContentsDir Path to the root Dir of the exploded zip content
  */
-export async function expectZipContents(
+export function expectZipContents(
   zipFile: string,
   expectedContentsDir: string
-): Promise<void> {
-  const entries = await compareZipContents(
-    fs.createReadStream(zipFile),
-    expectedContentsDir
-  );
-  const expectedFileCount = await countFiles(expectedContentsDir);
-  expect(entries.length).toEqual(expectedFileCount);
+) {
+  describe('the generated zip file', () => {
+
+    const vfs = new Volume();
+    let expectedFileCount = 0;
+    let actualFileCount: number;
+
+    afterAll(() => {
+      vfs.reset();
+    });
+
+    beforeAll(async () => {
+      actualFileCount = await recursivelyExplodeZip(fs.createReadStream(zipFile), vfs);
+    });
+
+    // Need to use glob.sync as describe functions cannot be async
+    glob.sync('**/*', {
+      cwd: expectedContentsDir,
+      nodir: true
+    }).forEach(file => {
+      ++expectedFileCount;
+      const expectedFilePath = path.resolve(expectedContentsDir, file);
+      it(`should contain the file ${file} containing the same content as ${expectedFilePath}`, async () => {
+        const expectedContent = await fs.promises.readFile(expectedFilePath);
+        const actualContent = await vfs.promises.readFile(path.resolve('/', file)).catch(error => {
+          if (error.code === 'ENOENT') {
+            return undefined;
+          }
+          throw error;
+        });
+        if (actualContent === undefined) {
+          fail(`File ${file} missing in pacakged zip`);
+        } else if (isTextFile(file)) {
+          // IDEs/editors may force trailing new lines in expected text files
+          expect(actualContent.toString('utf8').trim()).toEqual(expectedContent.toString('utf8').trim());
+        } else {
+          expect(actualContent).toEqual(expectedContent);
+        }
+      });
+    });
+
+    it(`should contain no more than the ${expectedFileCount} files expected`, () => {
+      expect(actualFileCount).toEqual(expectedFileCount);
+    });
+  });
 }
 
 /**
@@ -50,19 +90,11 @@ async function countFiles(dir: string) {
     .then((fileCounts) => fileCounts.reduce((sum, next) => sum + next, 0));
 }
 
-async function compareZipContents(
-  zipStream,
-  expectedZipContentsDir: string,
-  expectedRootZipContentsDir?: string
-): Promise<string[]> {
-  if (!expectedRootZipContentsDir) {
-    expectedRootZipContentsDir = expectedZipContentsDir;
-  }
-
+async function recursivelyExplodeZip(zipStream, vfs: Volume, rootDir = '/'): Promise<number> {
   const zipParser = zipStream.pipe(unzipper.Parse());
 
   return new Promise((resolve, reject) => {
-    const entries = [];
+    let entries = 0;
 
     // The 'finish' event can fire whilst we're awaiting the
     // async processing of an entry stream, so only resolve when
@@ -77,32 +109,21 @@ async function compareZipContents(
 
     zipParser
       .on('entry', async function (entry) {
+        ++processingEntries;
         const type = entry.type;
-
+        const fullPath = path.resolve(rootDir, entry.path);
         if (type === 'Directory') {
-          // Ignore dirs
+          await vfs.promises.mkdir(fullPath, {recursive: true});
           entry.autodrain();
         } else if (entry.path.endsWith('.zip')) {
-          ++processingEntries;
-          const childZipEntries = await compareZipContents(
-            entry,
-            path.resolve(expectedZipContentsDir, entry.path),
-            expectedRootZipContentsDir
-          );
-          entries.push(...childZipEntries);
-          --processingEntries;
-          resolveIfAppropriate();
+          await vfs.promises.mkdir(fullPath, {recursive: true});
+          entries += await recursivelyExplodeZip(entry, vfs, fullPath);
         } else {
-          ++processingEntries;
-          entries.push(entry.path);
-          await compareEntry(
-            entry,
-            expectedZipContentsDir,
-            expectedRootZipContentsDir
-          );
-          --processingEntries;
-          resolveIfAppropriate();
+          ++entries;
+          await vfs.promises.writeFile(fullPath, await entry.buffer());
         }
+        --processingEntries;
+        resolveIfAppropriate();
       })
       .on('finish', () => {
         finished = true;
@@ -111,7 +132,14 @@ async function compareZipContents(
       .on('error', (error) => {
         reject(error);
       });
-  });
+    });
+}
+
+function compareZipContents(
+  expectedZipContentsDir: string,
+  explodedZipVfs: Volume
+) {
+
 }
 
 async function compareEntry(

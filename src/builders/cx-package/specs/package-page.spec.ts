@@ -104,10 +104,8 @@ describe('cx-package builder with page item', () => {
     );
   });
 
-  it('should generate a zip containing the page', async () => {
-    await expectZipContents(
-      expectedOutputPath,
-      path.resolve(testDir, 'expected')
-    );
-  });
+  expectZipContents(
+    expectedOutputPath,
+    path.resolve(testDir, 'expected')
+  );
 });
