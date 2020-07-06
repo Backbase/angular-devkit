@@ -15,8 +15,11 @@ import * as path from 'path';
 import { JsonObject } from '@angular-devkit/core';
 import { promisify } from 'util';
 import { createPageContent } from './item-builders/page-builder';
-const zipFolder = promisify(require('zip-folder'));
-const rimraf = promisify(require('rimraf'));
+import * as zipFolderWithCallback from 'zip-folder';
+import * as rimrafWithCallback from 'rimraf';
+
+const zipFolder = promisify(zipFolderWithCallback);
+const rimraf = promisify(rimrafWithCallback);
 
 export default createBuilder(cxPackageBuilder);
 

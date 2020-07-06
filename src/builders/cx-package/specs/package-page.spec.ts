@@ -1,13 +1,14 @@
 import { Architect } from '@angular-devkit/architect';
 import { TestingArchitectHost } from '@angular-devkit/architect/testing';
-import { logging, schema } from '@angular-devkit/core';
+import { JsonObject, logging, schema } from '@angular-devkit/core';
 
 import * as path from 'path';
 import { CxPackageBuilderOptions } from '../schema';
 import { promisify } from 'util';
 import { expectZipContents, rootDir, cxPackageBuilderName } from './test-utils';
 
-const rimraf = promisify(require('rimraf'));
+import * as rimrafWithCallback from 'rimraf';
+const rimraf = promisify(rimrafWithCallback);
 
 /**
  * Path to the dir containing test assets.
@@ -40,7 +41,7 @@ describe('cx-package builder with page item', () => {
   });
 
   it('should correctly package the page', async () => {
-    const options: CxPackageBuilderOptions = {
+    const options: CxPackageBuilderOptions & JsonObject = {
       items: [
         {
           type: 'page',
@@ -66,7 +67,7 @@ describe('cx-package builder with page item', () => {
     // A "run" can have multiple outputs, and contains progress information.
     const run = await architect.scheduleBuilder(
       cxPackageBuilderName,
-      <any>options,
+      options,
       { logger }
     );
 

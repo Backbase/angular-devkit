@@ -3,8 +3,9 @@ import * as fs from 'fs';
 import { DOMParser, XMLSerializer } from 'xmldom';
 import { promisify } from 'util';
 import { ItemBuilder, ItemBuilderContext } from '../types';
+import * as ncpWithCallback from 'ncp';
 
-const ncp = promisify(require('ncp'));
+const ncp = promisify(ncpWithCallback);
 
 export const createPageContent: ItemBuilder = async (
   context: ItemBuilderContext

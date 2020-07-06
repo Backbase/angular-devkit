@@ -7,6 +7,7 @@
     "prebuild": "rm -rf ./dist && npm run generate:sources",
     "build": "gulp",
     "test": "jest",
+    "lint": "eslint src",
     "format": "npx prettier --write src"
   },
   "repository": {
@@ -23,6 +24,9 @@
     "@angular-devkit/architect": "^0.803.28",
     "@types/jest": "^26.0.3",
     "@types/jsdom": "^16.2.3",
+    "@typescript-eslint/eslint-plugin": "^3.5.0",
+    "@typescript-eslint/parser": "^3.5.0",
+    "eslint": "^7.4.0",
     "gulp": "^4.0.2",
     "gulp-typescript": "^5.0.1",
     "jest": "^26.1.0",

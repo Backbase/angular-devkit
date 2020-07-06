@@ -17,7 +17,7 @@ export const rootDir = path.resolve(__dirname, '..', '..', '..', '..');
 export async function expectZipContents(
   zipFile: string,
   expectedContentsDir: string
-) {
+): Promise<void> {
   const entries = await compareZipContents(
     fs.createReadStream(zipFile),
     expectedContentsDir
