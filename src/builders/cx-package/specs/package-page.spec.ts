@@ -1,4 +1,4 @@
-import { Architect } from '@angular-devkit/architect';
+import { Architect, BuilderOutput } from '@angular-devkit/architect';
 import { TestingArchitectHost } from '@angular-devkit/architect/testing';
 import { JsonObject, logging, schema } from '@angular-devkit/core';
 
@@ -22,76 +22,89 @@ const testDir = path.resolve(
 );
 
 describe('cx-package builder with page item', () => {
+  const options: CxPackageBuilderOptions & JsonObject = {
+    items: [
+      {
+        type: 'page',
+        name: 'test-page',
+        entryFile: 'resources/index.hbs',
+        icon: 'resources/icon.png',
+        builtSources: 'build',
+        modelXml: 'resources/model.xml'
+      },
+    ],
+    destFileName: 'my-awesome-package.zip',
+    skipCleanUp: true,
+  };
+
+  const expectedOutputPath = path.resolve(
+    testDir,
+    'dist',
+    'provisioning-packages',
+    options.destFileName
+  );
+
+  const infoLogs = [];
+
   let architect: Architect;
   let architectHost: TestingArchitectHost;
+  let output: BuilderOutput;
 
-  beforeEach(async () => {
+  async function cleanTestOutputDir() {
     await rimraf(path.resolve(testDir, 'dist'));
+  }
 
+  async function configureArchitect() {
     const registry = new schema.CoreSchemaRegistry();
     registry.addPostTransform(schema.transforms.addUndefinedDefaults);
 
-    // TestingArchitectHost() takes workspace and current directories.
     architectHost = new TestingArchitectHost(testDir, testDir);
     architect = new Architect(architectHost, registry);
 
-    // addBuilderFromPackage takes either a Node package name, or a path
-    // to a directory containing a package.json file.
     await architectHost.addBuilderFromPackage(rootDir);
-  });
+  }
 
-  it('should correctly package the page', async () => {
-    const options: CxPackageBuilderOptions & JsonObject = {
-      items: [
-        {
-          type: 'page',
-          name: 'test-page',
-          entryFile: 'resources/index.hbs',
-          icon: 'resources/icon.png',
-          builtSources: 'build',
-          modelXml: 'resources/model.xml'
-        },
-      ],
-      destFileName: 'my-awesome-package.zip',
-      skipCleanUp: true,
-    };
-
+  function createLogger() {
     const logger = new logging.Logger('');
-    const infoLogs = [];
     logger.subscribe((ev) => {
       if (ev.level === 'info') {
         infoLogs.push(ev.message);
       }
     });
+    return logger;
+  }
 
-    // A "run" can have multiple outputs, and contains progress information.
+  async function runBuilder() {
+    const logger = createLogger();
+
     const run = await architect.scheduleBuilder(
       cxPackageBuilderName,
       options,
       { logger }
     );
 
-    // The "result" member (of type BuilderOutput) is the next output.
-    const output = await run.result;
+    output = await run.result;
 
-    // Stop the builder from running. This stops Architect from keeping
-    // the builder-associated states in memory, since builders keep waiting
-    // to be scheduled.
     await run.stop();
+  }
 
+  beforeAll(async () => {
+    await cleanTestOutputDir();
+    await configureArchitect();
+    await runBuilder();
+  });
+
+  it('should report success', () => {
     expect(output.success).toBe(true);
+  });
 
-    const expectedOutputPath = path.resolve(
-      testDir,
-      'dist',
-      'provisioning-packages',
-      options.destFileName
-    );
-
+  it('should log the path to the built package', () => {
     expect(infoLogs).toContain(
       `Created provisioning package: ${expectedOutputPath}`
     );
+  });
 
+  it('should generate a zip containing the page', async () => {
     await expectZipContents(
       expectedOutputPath,
       path.resolve(testDir, 'expected')
