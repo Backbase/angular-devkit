@@ -14,7 +14,7 @@ export const createPageContent: ItemBuilder = async (
     context.builderContext.workspaceRoot,
     context.item.builtSources
   );
-  const indexHtmlFile = path.resolve(builtSources, 'index.html');
+  const indexHtmlFile = path.resolve(builtSources, context.item.builtIndex || 'index.html');
 
   await copyBuiltSourcesToZipContentsDir(
     builtSources,

@@ -33,8 +33,13 @@
                 "type": "string"
               },
               "builtSources": {
-                "description": "Path (relative to the Angular workspace root) to directory used as the `outputPath` of the `ng build` command",
+                "description": "Path (relative to the Angular workspace root) to the directory used as the `outputPath` of the `ng build` command",
                 "type": "string"
+              },
+              "builtIndex": {
+                "description": "Path (relative to the `builtSources` property) to the built index file which contains the script and stylesheet tags created by the Angular compiler",
+                "type": "string",
+                "default": "index.html"
               },
               "entryFile": {
                 "description": "Path (relative to the Angular workspace root) to the *.hbs file to be served by CX as the entry point for this page",

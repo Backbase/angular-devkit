@@ -49,7 +49,7 @@ describe('cx-package builder with page item', () => {
           entryFile: 'resources/index.hbs',
           icon: 'resources/icon.png',
           builtSources: 'build',
-          modelXml: 'resources/model.xml',
+          modelXml: 'resources/model.xml'
         },
       ],
       destFileName: 'my-awesome-package.zip',
