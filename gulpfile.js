@@ -1,6 +1,6 @@
 const gulp = require('gulp');
 const ts = require('gulp-typescript');
-const merge = require('merge2');  // Requires separate installation
+const merge = require('merge2');
 const path = require('path');
 
 gulp.task('default', function() {

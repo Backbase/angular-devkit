@@ -53,7 +53,6 @@ async function cxPackageBuilder(
   } else {
     context.logger.debug('Cleaning up...');
     await rimraf(tmpDirName).catch((error) => {
-      // non-fatal, just log
       context.logger.warn(`Error deleting tmp dir ${tmpDirName}: ${error}`);
     });
   }
@@ -90,8 +89,8 @@ function createProvisioningItemFactory(
     context.logger.debug(
       `Creating provisioning item "${item.name}" as ${itemZipFileName}...`
     );
-    const itemBuilder = getItemBuilder(item);
-    await itemBuilder({
+    const buildItem = getItemBuilder(item);
+    await buildItem({
       item,
       destDir: itemZipContentsDir,
       builderContext: context,
