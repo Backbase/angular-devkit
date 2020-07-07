@@ -30,7 +30,7 @@ describe('cx-package builder with page item', () => {
         entryFile: 'resources/index.hbs',
         icon: 'resources/icon.png',
         builtSources: 'build',
-        modelXml: 'resources/model.xml'
+        modelXml: 'resources/model.xml',
       },
     ],
     destFileName: 'my-awesome-package.zip',
@@ -77,11 +77,9 @@ describe('cx-package builder with page item', () => {
   async function runBuilder() {
     const logger = createLogger();
 
-    const run = await architect.scheduleBuilder(
-      cxPackageBuilderName,
-      options,
-      { logger }
-    );
+    const run = await architect.scheduleBuilder(cxPackageBuilderName, options, {
+      logger,
+    });
 
     output = await run.result;
 
@@ -104,8 +102,5 @@ describe('cx-package builder with page item', () => {
     );
   });
 
-  expectZipContents(
-    expectedOutputPath,
-    path.resolve(testDir, 'expected')
-  );
+  expectZipContents(expectedOutputPath, path.resolve(testDir, 'expected'));
 });

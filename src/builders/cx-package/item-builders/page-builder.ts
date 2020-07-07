@@ -4,6 +4,7 @@ import { DOMParser, XMLSerializer } from 'xmldom';
 import { promisify } from 'util';
 import { ItemBuilder, ItemBuilderContext } from '../types';
 import * as ncpWithCallback from 'ncp';
+import * as parse5 from 'parse5';
 
 const ncp = promisify(ncpWithCallback);
 
@@ -14,7 +15,10 @@ export const createPageContent: ItemBuilder = async (
     context.builderContext.workspaceRoot,
     context.item.builtSources
   );
-  const indexHtmlFile = path.resolve(builtSources, context.item.builtIndex || 'index.html');
+  const indexHtmlFile = path.resolve(
+    builtSources,
+    context.item.builtIndex || 'index.html'
+  );
 
   await copyBuiltSourcesToZipContentsDir(
     builtSources,
@@ -42,12 +46,8 @@ async function createEntryFileInZipContentsDir(
   context: ItemBuilderContext
 ): Promise<string> {
   const { item, destDir, builderContext } = context;
-  const indexHtmlContent = await fs.promises.readFile(indexHtmlFile, 'utf8');
 
-  const styles = indexHtmlContent.match(/<link.*?href=".*?>/g).join('\n');
-  const scripts = indexHtmlContent
-    .match(/<script.*?src=".*?><\/script>/g)
-    .join('\n');
+  const { scripts, links } = await extractScriptAndLinkTags(indexHtmlFile);
 
   const entryFileSource = path.resolve(
     builderContext.workspaceRoot,
@@ -55,14 +55,34 @@ async function createEntryFileInZipContentsDir(
   );
   const entryFileName = path.basename(entryFileSource);
   const entryFileContent = (await fs.promises.readFile(entryFileSource, 'utf8'))
-    .replace('{{styles}}', styles)
-    .replace('{{scripts}}', scripts);
+    .replace('{{styles}}', links.join('\n'))
+    .replace('{{scripts}}', scripts.join('\n'));
 
   const entryFileDest = path.resolve(destDir, entryFileName);
 
   await fs.promises.writeFile(entryFileDest, entryFileContent, 'utf8');
 
   return entryFileName;
+}
+
+async function extractScriptAndLinkTags(
+  indexHtmlFile
+): Promise<{ scripts: string[]; links: string[] }> {
+  const indexHtmlContent = await fs.promises.readFile(indexHtmlFile, 'utf8');
+  const indexHtmlDom: Document = parse5.parse(indexHtmlContent);
+  const html = findChild(indexHtmlDom, 'html');
+
+  const head = findChild(html, 'head');
+  const links = findChildren(head, 'link').map((elem) =>
+    parse5.serialize({ childNodes: [elem] })
+  );
+
+  const body = findChild(html, 'body');
+  const scripts = findChildren(body, 'script').map((elem) =>
+    parse5.serialize({ childNodes: [elem] }).replace(/=""/g, '')
+  );
+
+  return { scripts, links };
 }
 
 async function copyIconToZipContentsDir(
@@ -149,7 +169,7 @@ function setProperty(properties, name, value) {
 }
 
 function findChild(
-  parentElem: Element,
+  parentElem: Node,
   predicateOrTagName: ((elem: Element) => boolean) | string
 ): Element {
   const predicate =
@@ -157,4 +177,15 @@ function findChild(
       ? (elem: Element) => elem.tagName === predicateOrTagName
       : predicateOrTagName;
   return <Element>Array.from(parentElem.childNodes).find(predicate);
+}
+
+function findChildren(
+  parentElem: Node,
+  predicateOrTagName: ((elem: Element) => boolean) | string
+): Element[] {
+  const predicate =
+    'string' === typeof predicateOrTagName
+      ? (elem: Element) => elem.tagName === predicateOrTagName
+      : predicateOrTagName;
+  return <Element[]>Array.from(parentElem.childNodes).filter(predicate);
 }

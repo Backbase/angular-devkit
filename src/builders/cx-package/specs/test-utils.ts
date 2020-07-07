@@ -19,9 +19,8 @@ export const rootDir = path.resolve(__dirname, '..', '..', '..', '..');
 export function expectZipContents(
   zipFile: string,
   expectedContentsDir: string
-) {
+): void {
   describe('the generated zip file', () => {
-
     const vfs = new Volume();
     let expectedFileCount = 0;
     let actualFileCount: number;
@@ -31,34 +30,43 @@ export function expectZipContents(
     });
 
     beforeAll(async () => {
-      actualFileCount = await recursivelyExplodeZip(fs.createReadStream(zipFile), vfs);
+      actualFileCount = await recursivelyExplodeZip(
+        fs.createReadStream(zipFile),
+        vfs
+      );
     });
 
     // Need to use glob.sync as describe functions cannot be async
-    glob.sync('**/*', {
-      cwd: expectedContentsDir,
-      nodir: true
-    }).forEach(file => {
-      ++expectedFileCount;
-      const expectedFilePath = path.resolve(expectedContentsDir, file);
-      it(`should contain the file ${file} containing the same content as ${expectedFilePath}`, async () => {
-        const expectedContent = await fs.promises.readFile(expectedFilePath);
-        const actualContent = await vfs.promises.readFile(path.resolve('/', file)).catch(error => {
-          if (error.code === 'ENOENT') {
-            return undefined;
+    glob
+      .sync('**/*', {
+        cwd: expectedContentsDir,
+        nodir: true,
+      })
+      .forEach((file) => {
+        ++expectedFileCount;
+        const expectedFilePath = path.resolve(expectedContentsDir, file);
+        it(`should contain the file ${file} containing the same content as ${expectedFilePath}`, async () => {
+          const expectedContent = await fs.promises.readFile(expectedFilePath);
+          const actualContent = await vfs.promises
+            .readFile(path.resolve('/', file))
+            .catch((error) => {
+              if (error.code === 'ENOENT') {
+                return undefined;
+              }
+              throw error;
+            });
+          if (actualContent === undefined) {
+            fail(`File ${file} missing in pacakged zip`);
+          } else if (isTextFile(file)) {
+            // IDEs/editors may force trailing new lines in expected text files
+            expect(actualContent.toString('utf8').trim()).toEqual(
+              expectedContent.toString('utf8').trim()
+            );
+          } else {
+            expect(actualContent).toEqual(expectedContent);
           }
-          throw error;
         });
-        if (actualContent === undefined) {
-          fail(`File ${file} missing in pacakged zip`);
-        } else if (isTextFile(file)) {
-          // IDEs/editors may force trailing new lines in expected text files
-          expect(actualContent.toString('utf8').trim()).toEqual(expectedContent.toString('utf8').trim());
-        } else {
-          expect(actualContent).toEqual(expectedContent);
-        }
       });
-    });
 
     it(`should contain no more than the ${expectedFileCount} files expected`, () => {
       expect(actualFileCount).toEqual(expectedFileCount);
@@ -66,31 +74,11 @@ export function expectZipContents(
   });
 }
 
-/**
- * Returns the number of files (excl. directories) in the given directory and
- * all sub-directories.
- *
- * @param dir Root directory to start counting files
- */
-async function countFiles(dir: string) {
-  return fs.promises
-    .readdir(dir)
-    .then((entries) =>
-      Promise.all(
-        entries.map(async (entry) => {
-          const entryPath = path.resolve(dir, entry);
-          const stat = await fs.promises.lstat(entryPath);
-          if (stat.isDirectory()) {
-            return await countFiles(entryPath);
-          }
-          return 1;
-        })
-      )
-    )
-    .then((fileCounts) => fileCounts.reduce((sum, next) => sum + next, 0));
-}
-
-async function recursivelyExplodeZip(zipStream, vfs: Volume, rootDir = '/'): Promise<number> {
+async function recursivelyExplodeZip(
+  zipStream,
+  vfs: Volume,
+  rootDir = '/'
+): Promise<number> {
   const zipParser = zipStream.pipe(unzipper.Parse());
 
   return new Promise((resolve, reject) => {
@@ -113,10 +101,10 @@ async function recursivelyExplodeZip(zipStream, vfs: Volume, rootDir = '/'): Pro
         const type = entry.type;
         const fullPath = path.resolve(rootDir, entry.path);
         if (type === 'Directory') {
-          await vfs.promises.mkdir(fullPath, {recursive: true});
+          await vfs.promises.mkdir(fullPath, { recursive: true });
           entry.autodrain();
         } else if (entry.path.endsWith('.zip')) {
-          await vfs.promises.mkdir(fullPath, {recursive: true});
+          await vfs.promises.mkdir(fullPath, { recursive: true });
           entries += await recursivelyExplodeZip(entry, vfs, fullPath);
         } else {
           ++entries;
@@ -132,49 +120,12 @@ async function recursivelyExplodeZip(zipStream, vfs: Volume, rootDir = '/'): Pro
       .on('error', (error) => {
         reject(error);
       });
-    });
-}
-
-function compareZipContents(
-  expectedZipContentsDir: string,
-  explodedZipVfs: Volume
-) {
-
-}
-
-async function compareEntry(
-  entry,
-  expectedZipContentDir: string,
-  expectedRootZipContentsDir: string
-) {
-  const expectedPath = path.resolve(expectedZipContentDir, entry.path);
-  try {
-    const expectedContent = await fs.promises.readFile(expectedPath);
-    const actualContent: Buffer = await entry.buffer();
-
-    if (isTextFile(entry.path)) {
-      expect(actualContent.toString('utf8').trim()).toEqual(
-        expectedContent.toString('utf8').trim()
-      );
-    } else {
-      expect(actualContent).toEqual(expectedContent);
-    }
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      const relativePath = path.relative(
-        expectedRootZipContentsDir,
-        expectedPath
-      );
-      fail(`Unexpected file in zip: ${relativePath}`);
-    } else {
-      throw error;
-    }
-  }
+  });
 }
 
 function isTextFile(file: string) {
   // An heuristic implementation
-  return ['js', 'json', 'html', 'css', 'xml', 'svg'].includes(
+  return ['js', 'json', 'html', 'css', 'xml', 'svg', 'hbs'].includes(
     path.extname(file).substr(1)
   );
 }
