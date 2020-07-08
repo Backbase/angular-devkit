@@ -2,6 +2,7 @@ import { Architect, BuilderOutput } from '@angular-devkit/architect';
 import { TestingArchitectHost } from '@angular-devkit/architect/testing';
 import { JsonObject, logging, schema } from '@angular-devkit/core';
 
+import * as fs from 'fs';
 import * as path from 'path';
 import { CxPackageBuilderOptions } from '../schema';
 import { promisify } from 'util';
@@ -86,7 +87,14 @@ describe('cx-package builder with page item', () => {
     await run.stop();
   }
 
+  async function mockMkDirTmp(prefix): Promise<string> {
+    const dir = `${prefix}RANDOM`;
+    await fs.promises.mkdir(dir);
+    return dir;
+  }
+
   beforeAll(async () => {
+    jest.spyOn(fs.promises, 'mkdtemp').mockImplementation(mockMkDirTmp);
     await cleanTestOutputDir();
     await configureArchitect();
     await runBuilder();

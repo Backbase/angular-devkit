@@ -88,7 +88,7 @@ function createProvisioningItemFactory(
       `${kebabCaseName}-${item.type}`
     );
 
-    const itemZipFileName = `${path.basename(itemZipContentsDir, '.tmp')}.zip`;
+    const itemZipFileName = `${path.basename(itemZipContentsDir)}.zip`;
     context.logger.debug(
       `Creating provisioning item "${item.name}" as ${itemZipFileName}...`
     );
@@ -116,27 +116,8 @@ async function createTmpDir(
   destDir: string,
   destFileName: string
 ): Promise<string> {
-  let tmpDirName: string;
-  let i = 0;
-  do {
-    tmpDirName = path.resolve(destDir, `${destFileName}.${i++}.tmp`);
-  } while (!(await createDirIfNotExists(destDir, tmpDirName)));
-  return tmpDirName;
-}
-
-async function createDirIfNotExists(
-  parent: string,
-  dir: string
-): Promise<boolean> {
-  return fs.promises
-    .mkdir(dir)
-    .then(() => true)
-    .catch((err) => {
-      if (err?.code === 'EEXIST') {
-        return false;
-      }
-      throw err;
-    });
+  const prefix = path.resolve(destDir, `${destFileName}-`);
+  return fs.promises.mkdtemp(prefix);
 }
 
 async function createZipOfZips(
