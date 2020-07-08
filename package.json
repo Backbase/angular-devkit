@@ -3,8 +3,7 @@
   "version": "0.1.0",
   "description": "Angular dev tools for Backbase projects",
   "scripts": {
-    "generate:sources": "json2ts -i src/builders/cx-package/schema.json -o src/builders/cx-package/schema.d.ts",
-    "prebuild": "rm -rf ./dist && npm run generate:sources",
+    "generate:sources": "gulp generateSources",
     "build": "gulp",
     "test": "jest",
     "lint": "eslint src",
