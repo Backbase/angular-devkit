@@ -1,0 +1,10 @@
+{
+  "name": "catalog",
+  "provisioningItems": [
+    {
+      "name": "test-page",
+      "itemType": "catalog",
+      "location": "test-page-page-RANDOM.zip"
+    }
+  ]
+}

@@ -33,13 +33,20 @@
                 "type": "string"
               },
               "builtSources": {
-                "description": "Path (relative to the Angular workspace root) to the directory used as the `outputPath` of the `ng build` command",
+                "description": "Path (relative to the Angular workspace root) to the directory containing the built sources for the app. The entire contents of this directory will be included in the package.\n\nTypically, this is either the same as `outputPath` of the `ng build` command when packaging just a single localisation for the app, or the parent directory of the various `outputPath` destinations when packaging multiple localisations of the app.",
                 "type": "string"
               },
-              "builtIndex": {
-                "description": "Path (relative to the `builtSources` property) to the built index file which contains the script and stylesheet tags created by the Angular compiler",
-                "type": "string",
-                "default": "index.html"
+              "builtIndexFiles": {
+                "description": "The index.html files built by `ng build` for each localisation to be packaged.  Each key should be an RFC-5646 language tag and each value the path to the index.html (relative to the `builtSources` directory) for that locale.",
+                "type": "object",
+                "minProperties": 1,
+                "additionalProperties": {
+                  "type": "string",
+                  "default": "index.html"
+                },
+                "default": {
+                  "en-US": "index.html"
+                }
               },
               "entryFile": {
                 "description": "Path (relative to the Angular workspace root) to the *.hbs file to be served by CX as the entry point for this page",

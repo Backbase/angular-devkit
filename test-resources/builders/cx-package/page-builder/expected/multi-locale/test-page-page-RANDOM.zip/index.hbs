@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    {{#if (equal locale "en-US")}}
+<link rel="icon" type="image/x-icon" href="en/favicon.ico">
+<link rel="stylesheet" href="en/styles.css">
+{{else if (equal locale "cy-GB")}}
+<link rel="icon" type="image/x-icon" href="cy/favicon.ico">
+<link rel="stylesheet" href="cy/styles.cy.css">
+{{/if}}
+  </head>
+  <body>
+    <app-root></app-root>
+    {{#if (equal locale "en-US")}}
+<script src="en/a.js" defer></script>
+<script src="en/b.js" nomodule defer></script>
+{{else if (equal locale "cy-GB")}}
+<script src="cy/c.js" defer></script>
+<script src="cy/d.js" nomodule defer></script>
+{{/if}}
+  </body>
+</html>

@@ -8,25 +8,41 @@ import * as parse5 from 'parse5';
 
 const ncp = promisify(ncpWithCallback);
 
+type LocalisedIndexHtmlFiles = { [lang: string]: string };
+type LocalisedScriptsAndLinks = {
+  lang: string;
+  scripts: string[];
+  links: string[];
+};
+
 export const createPageContent: ItemBuilder = async (
   context: ItemBuilderContext
 ) => {
+  if (!context.item.builtIndexFiles) {
+    context.item.builtIndexFiles = {
+      'en-US': 'index.html',
+    };
+  }
   const builtSources = path.resolve(
     context.builderContext.workspaceRoot,
     context.item.builtSources
   );
-  const indexHtmlFile = path.resolve(
-    builtSources,
-    context.item.builtIndex || 'index.html'
+  const indexHtmlFiles = Object.entries(context.item.builtIndexFiles).reduce(
+    (acc, [lang, indexPath]) => {
+      acc[lang] = path.resolve(builtSources, indexPath || 'index.html');
+      return acc;
+    },
+    {} as LocalisedIndexHtmlFiles
   );
 
   await copyBuiltSourcesToZipContentsDir(
     builtSources,
     context.destDir,
-    (file) => file !== indexHtmlFile
+    (file) => !Object.values(indexHtmlFiles).includes(file)
   );
   const entryFileName = await createEntryFileInZipContentsDir(
-    indexHtmlFile,
+    builtSources,
+    indexHtmlFiles,
     context
   );
   const iconFileName = await copyIconToZipContentsDir(context);
@@ -42,12 +58,16 @@ async function copyBuiltSourcesToZipContentsDir(
 }
 
 async function createEntryFileInZipContentsDir(
-  indexHtmlFile: string,
+  builtSourcesRoot: string,
+  indexHtmlFiles: LocalisedIndexHtmlFiles,
   context: ItemBuilderContext
 ): Promise<string> {
   const { item, destDir, builderContext } = context;
 
-  const { scripts, links } = await extractScriptAndLinkTags(indexHtmlFile);
+  const { scripts, links } = await getScriptsAndLinks(
+    builtSourcesRoot,
+    indexHtmlFiles
+  );
 
   const entryFileSource = path.resolve(
     builderContext.workspaceRoot,
@@ -55,8 +75,8 @@ async function createEntryFileInZipContentsDir(
   );
   const entryFileName = path.basename(entryFileSource);
   const entryFileContent = (await fs.promises.readFile(entryFileSource, 'utf8'))
-    .replace('{{styles}}', links.join('\n'))
-    .replace('{{scripts}}', scripts.join('\n'));
+    .replace('{{styles}}', links)
+    .replace('{{scripts}}', scripts);
 
   const entryFileDest = path.resolve(destDir, entryFileName);
 
@@ -65,24 +85,96 @@ async function createEntryFileInZipContentsDir(
   return entryFileName;
 }
 
+async function getScriptsAndLinks(
+  relativiseFrom: string,
+  indexHtmlFiles: LocalisedIndexHtmlFiles
+): Promise<{ scripts: string; links: string }> {
+  const localisedScriptsAndLinks = await extractAllScriptAndLinkTags(
+    relativiseFrom,
+    indexHtmlFiles
+  );
+  if (localisedScriptsAndLinks.length === 1) {
+    return {
+      scripts: localisedScriptsAndLinks[0].scripts.join('\n'),
+      links: localisedScriptsAndLinks[0].links.join('\n'),
+    };
+  }
+
+  const { scripts, links } = localisedScriptsAndLinks.reduce(
+    (acc, next, idx) => {
+      const start = idx ? '\n{{else if' : '{{#if';
+      return {
+        scripts: `${acc.scripts}${start} (equal locale "${
+          next.lang
+        }")}}\n${next.scripts.join('\n')}`,
+        links: `${acc.links}${start} (equal locale "${
+          next.lang
+        }")}}\n${next.links.join('\n')}`,
+      };
+    },
+    { scripts: '', links: '' }
+  );
+  return {
+    scripts: `${scripts}\n{{/if}}`,
+    links: `${links}\n{{/if}}`,
+  };
+}
+
+async function extractAllScriptAndLinkTags(
+  relativiseFrom: string,
+  indexHtmlFiles: LocalisedIndexHtmlFiles
+): Promise<LocalisedScriptsAndLinks[]> {
+  const promises = Object.entries(indexHtmlFiles).reduce(
+    (acc, [lang, indexHtmlFile]) => {
+      acc.push(extractScriptAndLinkTags(lang, indexHtmlFile, relativiseFrom));
+      return acc;
+    },
+    [] as Promise<LocalisedScriptsAndLinks>[]
+  );
+  return Promise.all(promises);
+}
+
 async function extractScriptAndLinkTags(
-  indexHtmlFile
-): Promise<{ scripts: string[]; links: string[] }> {
+  lang: string,
+  indexHtmlFile: string,
+  relativiseFrom: string
+): Promise<LocalisedScriptsAndLinks> {
+  const relativePrefix = path.relative(
+    relativiseFrom,
+    path.dirname(indexHtmlFile)
+  );
+
   const indexHtmlContent = await fs.promises.readFile(indexHtmlFile, 'utf8');
   const indexHtmlDom: Document = parse5.parse(indexHtmlContent);
   const html = findChild(indexHtmlDom, 'html');
 
   const head = findChild(html, 'head');
-  const links = findChildren(head, 'link').map((elem) =>
-    parse5.serialize({ childNodes: [elem] })
-  );
+  const links = findChildren(head, 'link').map((elem) => {
+    if (relativePrefix) {
+      prefixAttribute(elem, 'href', relativePrefix);
+    }
+    return parse5.serialize({ childNodes: [elem] });
+  });
 
   const body = findChild(html, 'body');
-  const scripts = findChildren(body, 'script').map((elem) =>
-    parse5.serialize({ childNodes: [elem] }).replace(/=""/g, '')
-  );
+  const scripts = findChildren(body, 'script').map((elem) => {
+    if (relativePrefix) {
+      prefixAttribute(elem, 'src', relativePrefix);
+    }
+    return parse5.serialize({ childNodes: [elem] }).replace(/=""/g, '');
+  });
 
-  return { scripts, links };
+  return { lang, scripts, links };
+}
+
+function prefixAttribute(elem, attrName, prefix) {
+  // parse5 doesn't support the DOM API so can't use getAttribute/setAttribute
+  elem.attrs.find((attr) => {
+    if (attr.name === attrName) {
+      attr.value = `${prefix}/${attr.value}`;
+      return true;
+    }
+  });
 }
 
 async function copyIconToZipContentsDir(
