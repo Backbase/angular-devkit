@@ -166,7 +166,12 @@ async function extractScriptAndLinkTags(
     return parse5.serialize({ childNodes: [elem] }).replace(/=""/g, '');
   });
 
-  return { lang, scripts, links, dir: relativePrefix };
+  return {
+    lang,
+    scripts,
+    links,
+    dir: relativePrefix ? `${relativePrefix}/` : '',
+  };
 }
 
 function prefixAttribute(elem, attrName, prefix) {
