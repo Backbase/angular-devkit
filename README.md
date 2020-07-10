@@ -1,4 +1,4 @@
-# @backbase/angular-devkit
+# @bb-cli/angular-devkit
 
 A collection of Angular dev tools for Backbase projects.
 
@@ -25,10 +25,10 @@ The builders have specs that run tests against some static resources in the
 
 You can also test the builders against a real Angular project as follows:
 
-* Run `npm run build` in this root directory to build the `@backbase/angular-devkit` package
+* Run `npm run build` in this root directory to build the `@bb-cli/angular-devkit` package
 * Run `cd dist && npm pack`
-* Copy the `dist/backbase-angular-devkit-*.tgz` package to the root directory of your real Angular project.
-* In your Angular project's root dir, run `npm i backbase-angular-devkit-*.tgz -D` to install the package as a dev dependency
+* Copy the `dist/bb-cli-angular-devkit-*.tgz` package to the root directory of your real Angular project.
+* In your Angular project's root dir, run `npm i bb-cli-angular-devkit-*.tgz -D` to install the package as a dev dependency
 * Edit your Angular project's angular.json to add an `architect` target for the builder to test.
   For example, to test the `cx-package` builder, you could add the following `package` target  
   to the `projects.my-project-name.architect` section:
@@ -40,7 +40,7 @@ You can also test the builders against a real Angular project as follows:
       "architect": {
 
         "package": {
-          "builder": "@backbase/angular-devkit:cx-package",
+          "builder": "@bb-cli/angular-devkit:cx-package",
           "options": {
             "items": [
               {

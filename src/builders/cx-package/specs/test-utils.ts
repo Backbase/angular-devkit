@@ -4,7 +4,7 @@ import * as unzipper from 'unzipper';
 import { Volume } from 'memfs/lib/volume';
 import * as glob from 'glob';
 
-export const cxPackageBuilderName = '@backbase/angular-devkit:cx-package';
+export const cxPackageBuilderName = '@bb-cli/angular-devkit:cx-package';
 /**
  * Absolute path to the dir containing the project's package.json file.
  */

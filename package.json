@@ -1,5 +1,5 @@
 {
-  "name": "@backbase/angular-devkit",
+  "name": "@bb-cli/angular-devkit",
   "version": "0.1.0",
   "description": "Angular dev tools for Backbase projects",
   "scripts": {
