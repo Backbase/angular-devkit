@@ -13,6 +13,7 @@ type LocalisedScriptsAndLinks = {
   lang: string;
   scripts: string[];
   links: string[];
+  dir: string;
 };
 
 export const createPageContent: ItemBuilder = async (
@@ -64,7 +65,7 @@ async function createEntryFileInZipContentsDir(
 ): Promise<string> {
   const { item, destDir, builderContext } = context;
 
-  const { scripts, links } = await getScriptsAndLinks(
+  const { scripts, links, dirs } = await getScriptsAndLinks(
     builtSourcesRoot,
     indexHtmlFiles
   );
@@ -75,6 +76,7 @@ async function createEntryFileInZipContentsDir(
   );
   const entryFileName = path.basename(entryFileSource);
   const entryFileContent = (await fs.promises.readFile(entryFileSource, 'utf8'))
+    .replace('{{localeDir}}', dirs)
     .replace('{{styles}}', links)
     .replace('{{scripts}}', scripts);
 
@@ -88,7 +90,7 @@ async function createEntryFileInZipContentsDir(
 async function getScriptsAndLinks(
   relativiseFrom: string,
   indexHtmlFiles: LocalisedIndexHtmlFiles
-): Promise<{ scripts: string; links: string }> {
+): Promise<{ scripts: string; links: string; dirs: string }> {
   const localisedScriptsAndLinks = await extractAllScriptAndLinkTags(
     relativiseFrom,
     indexHtmlFiles
@@ -97,26 +99,26 @@ async function getScriptsAndLinks(
     return {
       scripts: localisedScriptsAndLinks[0].scripts.join('\n'),
       links: localisedScriptsAndLinks[0].links.join('\n'),
+      dirs: localisedScriptsAndLinks[0].dir,
     };
   }
 
-  const { scripts, links } = localisedScriptsAndLinks.reduce(
+  const { scripts, links, dirs } = localisedScriptsAndLinks.reduce(
     (acc, next, idx) => {
-      const start = idx ? '\n{{else if' : '{{#if';
+      const ifStart = idx ? '{{else if' : '{{#if';
+      const condition = `${ifStart} (equal locale "${next.lang}")}}`;
       return {
-        scripts: `${acc.scripts}${start} (equal locale "${
-          next.lang
-        }")}}\n${next.scripts.join('\n')}`,
-        links: `${acc.links}${start} (equal locale "${
-          next.lang
-        }")}}\n${next.links.join('\n')}`,
+        scripts: `${acc.scripts}${condition}\n${next.scripts.join('\n')}\n`,
+        links: `${acc.links}${condition}\n${next.links.join('\n')}\n`,
+        dirs: `${acc.dirs}${condition}${next.dir}`,
       };
     },
-    { scripts: '', links: '' }
+    { scripts: '', links: '', dirs: '' }
   );
   return {
-    scripts: `${scripts}\n{{/if}}`,
-    links: `${links}\n{{/if}}`,
+    scripts: `${scripts}{{/if}}`,
+    links: `${links}{{/if}}`,
+    dirs: `${dirs}{{/if}}`,
   };
 }
 
@@ -164,7 +166,7 @@ async function extractScriptAndLinkTags(
     return parse5.serialize({ childNodes: [elem] }).replace(/=""/g, '');
   });
 
-  return { lang, scripts, links };
+  return { lang, scripts, links, dir: relativePrefix };
 }
 
 function prefixAttribute(elem, attrName, prefix) {

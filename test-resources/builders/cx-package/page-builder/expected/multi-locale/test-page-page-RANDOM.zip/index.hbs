@@ -8,6 +8,9 @@
 <link rel="icon" type="image/x-icon" href="cy/favicon.ico">
 <link rel="stylesheet" href="cy/styles.cy.css">
 {{/if}}
+    <script>
+      var localeDir = "{{#if (equal locale "en-US")}}en{{else if (equal locale "cy-GB")}}cy{{/if}}";
+    </script>
   </head>
   <body>
     <app-root></app-root>
