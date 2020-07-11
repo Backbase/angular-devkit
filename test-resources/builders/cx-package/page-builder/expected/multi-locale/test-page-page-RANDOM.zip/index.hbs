@@ -2,24 +2,24 @@
 <html>
   <head>
     {{#if (equal locale "en-US")}}
-<link rel="icon" type="image/x-icon" href="en/favicon.ico">
-<link rel="stylesheet" href="en/styles.css">
+<link rel="icon" type="image/x-icon" href="en-US/favicon.ico">
+<link rel="stylesheet" href="en-US/styles.css">
 {{else if (equal locale "cy-GB")}}
-<link rel="icon" type="image/x-icon" href="cy/favicon.ico">
-<link rel="stylesheet" href="cy/styles.cy.css">
+<link rel="icon" type="image/x-icon" href="cy-GB/favicon.ico">
+<link rel="stylesheet" href="cy-GB/styles.cy.css">
 {{/if}}
     <script>
-      var localeDir = "{{#if (equal locale "en-US")}}en/{{else if (equal locale "cy-GB")}}cy/{{/if}}";
+      var localeDirs = {"en-US":"en-US/","cy-GB":"cy-GB/"};
     </script>
   </head>
   <body>
     <app-root></app-root>
     {{#if (equal locale "en-US")}}
-<script src="en/a.js" defer></script>
-<script src="en/b.js" nomodule defer></script>
+<script src="en-US/a.js" defer></script>
+<script src="en-US/b.js" nomodule defer></script>
 {{else if (equal locale "cy-GB")}}
-<script src="cy/c.js" defer></script>
-<script src="cy/d.js" nomodule defer></script>
+<script src="cy-GB/c.js" defer></script>
+<script src="cy-GB/d.js" nomodule defer></script>
 {{/if}}
   </body>
 </html>

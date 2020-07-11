@@ -36,17 +36,18 @@
                 "description": "Path (relative to the Angular workspace root) to the directory containing the built sources for the app. The entire contents of this directory will be included in the package.\n\nTypically, this is either the same as `outputPath` of the `ng build` command when packaging just a single localisation for the app, or the parent directory of the various `outputPath` destinations when packaging multiple localisations of the app.",
                 "type": "string"
               },
-              "builtIndexFiles": {
-                "description": "The index.html files built by `ng build` for each localisation to be packaged.  Each key should be an RFC-5646 language tag and each value the path to the index.html (relative to the `builtSources` directory) for that locale.",
-                "type": "object",
-                "minProperties": 1,
-                "additionalProperties": {
-                  "type": "string",
-                  "default": "index.html"
+              "builtIndex": {
+                "description": "Path within the `ng build` output to the index.html file which contains the script and stylesheet tags created by the Angular compiler.  If no `locales` are set, this path is relative to the directory specified by the `builtSources` property, otherwise it is relative to the locale-specific sub-directories of the `builtSources` directory.",
+                "type": "string",
+                "default": "index.html"
+              },
+              "locales": {
+                "description": "An array of locales to package.  Each locale-specific build should be built in a subdirectory with a name that matches the locale identifier under the `builtSources` directory.",
+                "type": "array",
+                "items": {
+                  "type": "string"
                 },
-                "default": {
-                  "en-US": "index.html"
-                }
+                "default": []
               },
               "entryFile": {
                 "description": "Path (relative to the Angular workspace root) to the *.hbs file to be served by CX as the entry point for this page",

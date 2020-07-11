@@ -19,22 +19,11 @@ type LocalisedScriptsAndLinks = {
 export const createPageContent: ItemBuilder = async (
   context: ItemBuilderContext
 ) => {
-  if (!context.item.builtIndexFiles) {
-    context.item.builtIndexFiles = {
-      'en-US': 'index.html',
-    };
-  }
   const builtSources = path.resolve(
     context.builderContext.workspaceRoot,
     context.item.builtSources
   );
-  const indexHtmlFiles = Object.entries(context.item.builtIndexFiles).reduce(
-    (acc, [lang, indexPath]) => {
-      acc[lang] = path.resolve(builtSources, indexPath || 'index.html');
-      return acc;
-    },
-    {} as LocalisedIndexHtmlFiles
-  );
+  const indexHtmlFiles = getLocalisedIndexFiles(builtSources, context);
 
   await copyBuiltSourcesToZipContentsDir(
     builtSources,
@@ -49,6 +38,20 @@ export const createPageContent: ItemBuilder = async (
   const iconFileName = await copyIconToZipContentsDir(context);
   await createModelXml(entryFileName, iconFileName, context);
 };
+
+function getLocalisedIndexFiles(
+  builtSources: string,
+  context: ItemBuilderContext
+) {
+  const indexFileName = context.item.builtIndex || 'index.html';
+  if (context.item.locales && context.item.locales.length) {
+    return context.item.locales.reduce((acc, lang) => {
+      acc[lang] = path.resolve(builtSources, lang, indexFileName);
+      return acc;
+    }, {} as LocalisedIndexHtmlFiles);
+  }
+  return { _: path.resolve(builtSources, indexFileName) };
+}
 
 async function copyBuiltSourcesToZipContentsDir(
   builtSources: string,
@@ -65,10 +68,15 @@ async function createEntryFileInZipContentsDir(
 ): Promise<string> {
   const { item, destDir, builderContext } = context;
 
-  const { scripts, links, dirs } = await getScriptsAndLinks(
+  const { scripts, links } = await getScriptsAndLinks(
     builtSourcesRoot,
     indexHtmlFiles
   );
+
+  const localDirs = (item.locales || []).reduce((acc, next) => {
+    acc[next] = `${next}/`;
+    return acc;
+  }, {});
 
   const entryFileSource = path.resolve(
     builderContext.workspaceRoot,
@@ -76,7 +84,7 @@ async function createEntryFileInZipContentsDir(
   );
   const entryFileName = path.basename(entryFileSource);
   const entryFileContent = (await fs.promises.readFile(entryFileSource, 'utf8'))
-    .replace('{{localeDir}}', dirs)
+    .replace('{{localeDirs}}', JSON.stringify(localDirs))
     .replace('{{styles}}', links)
     .replace('{{scripts}}', scripts);
 
@@ -90,7 +98,7 @@ async function createEntryFileInZipContentsDir(
 async function getScriptsAndLinks(
   relativiseFrom: string,
   indexHtmlFiles: LocalisedIndexHtmlFiles
-): Promise<{ scripts: string; links: string; dirs: string }> {
+): Promise<{ scripts: string; links: string }> {
   const localisedScriptsAndLinks = await extractAllScriptAndLinkTags(
     relativiseFrom,
     indexHtmlFiles
@@ -99,26 +107,23 @@ async function getScriptsAndLinks(
     return {
       scripts: localisedScriptsAndLinks[0].scripts.join('\n'),
       links: localisedScriptsAndLinks[0].links.join('\n'),
-      dirs: localisedScriptsAndLinks[0].dir,
     };
   }
 
-  const { scripts, links, dirs } = localisedScriptsAndLinks.reduce(
+  const { scripts, links } = localisedScriptsAndLinks.reduce(
     (acc, next, idx) => {
       const ifStart = idx ? '{{else if' : '{{#if';
       const condition = `${ifStart} (equal locale "${next.lang}")}}`;
       return {
         scripts: `${acc.scripts}${condition}\n${next.scripts.join('\n')}\n`,
         links: `${acc.links}${condition}\n${next.links.join('\n')}\n`,
-        dirs: `${acc.dirs}${condition}${next.dir}`,
       };
     },
-    { scripts: '', links: '', dirs: '' }
+    { scripts: '', links: '' }
   );
   return {
     scripts: `${scripts}{{/if}}`,
     links: `${links}{{/if}}`,
-    dirs: `${dirs}{{/if}}`,
   };
 }
 
