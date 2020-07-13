@@ -206,10 +206,12 @@ async function createModelXml(
 ) {
   const modelXml: Document = await readModelXml(context);
 
-  const properties = getPageProperties(modelXml);
+  const page = getPage(modelXml);
+  const properties = getPageProperties(page);
 
   setProperty(properties, 'src', `$(itemRoot)/${entryFileName}`);
   setProperty(properties, 'thumbnailUrl', `$(itemRoot)/${iconFileName}`);
+  setPageName(page, context.item.name);
 
   await writeModelXml(modelXml, context.destDir);
 }
@@ -227,7 +229,16 @@ async function writeModelXml(modelXml: Document, destDir: string) {
   await fs.promises.writeFile(dest, content, 'utf8');
 }
 
-function getPageProperties(modelXml: Document) {
+function setPageName(page: Element, pageName: string) {
+  let nameElement: Element = findChild(page, 'name');
+  if (!nameElement) {
+    nameElement = page.ownerDocument.createElement('name');
+    page.insertBefore(nameElement, page.firstChild);
+  }
+  nameElement.textContent = pageName;
+}
+
+function getPage(modelXml: Document) {
   const catalog = modelXml.documentElement;
   if (catalog.tagName !== 'catalog') {
     throw new Error(
@@ -242,10 +253,15 @@ function getPageProperties(modelXml: Document) {
     );
   }
 
+  return page;
+}
+
+function getPageProperties(page: Element) {
+
   let properties = findChild(page, 'properties');
 
   if (!properties) {
-    properties = modelXml.createElement('properties');
+    properties = page.ownerDocument.createElement('properties');
     page.appendChild(properties);
   }
 

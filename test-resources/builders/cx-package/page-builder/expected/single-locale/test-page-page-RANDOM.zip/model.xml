@@ -1,6 +1,6 @@
 <catalog>
     <page>
-        <name>whatever</name>
+        <name>test-page</name>
         <properties>
             <property name="thumbnailUrl">
                 <value type="string">$(itemRoot)/icon.png</value>

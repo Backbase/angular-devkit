@@ -1,13 +1,13 @@
 <catalog>
-    <page><name>test-page</name>
+    <page>
         <properties>
-            <property name="thumbnailUrl"><value type="string">$(itemRoot)/icon.png</value></property>
+            <property name="thumbnailUrl"></property>
             <property name="Description">
                 <value type="string">Master page for the Employee Web App single page application</value>
             </property>
             <property name="title">
                 <value type="string">Employee Web App SPA</value>
             </property>
-        <property name="src"><value type="string">$(itemRoot)/index.hbs</value></property></properties>
+        </properties>
     </page>
 </catalog>

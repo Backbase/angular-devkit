@@ -123,7 +123,7 @@ describe('cx-package builder with page item', () => {
           icon: 'resources/icon.png',
           builtSources: 'build',
           locales: ['en-US', 'cy-GB'],
-          modelXml: 'resources/model.xml',
+          modelXml: 'resources/model.alt.xml',
         },
       ],
       destFileName: 'my-awesome-package.zip',
