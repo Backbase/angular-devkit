@@ -257,7 +257,6 @@ function getPage(modelXml: Document) {
 }
 
 function getPageProperties(page: Element) {
-
   let properties = findChild(page, 'properties');
 
   if (!properties) {
