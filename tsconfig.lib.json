@@ -1,8 +1,9 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": ["node"]
+    "types": ["node"],
+    "resolveJsonModule": true
   },
-  "include": ["**/*.ts"],
-  "exclude": ["**/*.spec.ts", "**/test-utils.ts"]
+  "include": ["**/*.ts", "**/*.json"],
+  "exclude": ["**/*.spec.ts", "**/test-utils.ts", "dist", "test-resources", "package-lock.json", "tsconfig.*"]
 }
