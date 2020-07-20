@@ -1,0 +1,9 @@
+{
+  "builders": {
+    "cx-package": {
+      "implementation": "./cx-package/cx-package",
+      "schema": "./cx-package/schema.json",
+      "description": "Creates a provisioning package for CX."
+    }
+  }
+}

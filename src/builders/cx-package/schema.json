@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "title": "CxPackageBuilderOptions",
+  "description": "Options for the cx-package builder",
+  "type": "object",
+  "properties": {
+    "destDir": {
+      "description": "Output directory where the zip will be generated",
+      "type": "string",
+      "default": "dist/provisioning-packages"
+    },
+    "destFileName": {
+      "description": "File name of the generated zip",
+      "type": "string",
+      "default": "package.zip"
+    },
+    "items": {
+      "description": "List of provisioning items to bundle in in the package zip",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "anyOf": [
+          {
+            "description": "A CX page",
+            "type": "object",
+            "properties": {
+              "type": {
+                "description": "Discriminator identifying this `items` entry as a CX page",
+                "enum": ["page"]
+              },
+              "name": {
+                "description": "Name of the catalog item",
+                "type": "string"
+              },
+              "builtSources": {
+                "description": "Path (relative to the Angular workspace root) to the directory containing the built sources for the app. The entire contents of this directory will be included in the package.\n\nTypically, this is either the same as `outputPath` of the `ng build` command when packaging just a single localisation for the app, or the parent directory of the various `outputPath` destinations when packaging multiple localisations of the app.",
+                "type": "string"
+              },
+              "builtIndex": {
+                "description": "Path within the `ng build` output to the index.html file which contains the script and stylesheet tags created by the Angular compiler.  If no `locales` are set, this path is relative to the directory specified by the `builtSources` property, otherwise it is relative to the locale-specific sub-directories of the `builtSources` directory.",
+                "type": "string",
+                "default": "index.html"
+              },
+              "locales": {
+                "description": "An array of locales to package.  Each locale-specific build should be built in a subdirectory with a name that matches the locale identifier under the `builtSources` directory.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "entryFile": {
+                "description": "Path (relative to the Angular workspace root) to the *.hbs file to be served by CX as the entry point for this page",
+                "type": "string"
+              },
+              "modelXml": {
+                "description": "Path (relative to the Angular workspace root) to the model.xml file for this page",
+                "type": "string"
+              },
+              "icon": {
+                "description": "Path (relative to the Angular workspace root) to the image file to use as the catalog icon for this page",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "name",
+              "builtSources",
+              "entryFile",
+              "modelXml",
+              "icon"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "skipCleanUp": {
+      "description": "Whether to skip deleting tmp files created during packaging (useful for debugging)",
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": ["items"],
+  "additionalProperties": false
+}

@@ -1,0 +1,4 @@
+/dist
+/node_modules
+/coverage
+/src/builders/**/schema.d.ts
