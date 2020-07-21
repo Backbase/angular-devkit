@@ -6,6 +6,7 @@
     "generate:sources": "json2ts -i src/builders/cx-package/schema.json -o src/builders/cx-package/schema.d.ts",
     "prebuild": "rm -rf dist && npm run generate:sources",
     "build": "tsc -p tsconfig.lib.json",
+    "postbuild": "cp README.md LICENSE dist",
     "test": "jest",
     "lint": "eslint src",
     "format": "npx prettier --write src"
