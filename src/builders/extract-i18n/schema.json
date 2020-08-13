@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "type": "object",
+  "properties": {
+    "format": {
+      "alias": "f",
+      "choices": [
+        "xmb",
+        "xlf",
+        "xlif",
+        "xliff",
+        "xlf2",
+        "xlif2",
+        "xliff2",
+        "json"
+      ],
+      "default": "xlf",
+      "describe": "The format of the translation file."
+    },
+    "source": {
+      "alias": "s",
+      "default": "node_modules/@backbase/*/esm5/**/*.js",
+      "describe": "A glob pattern indicating what files to search for translations, e.g. `./dist/**/*.js`. This should be relative to the root path. Supports only js files."
+    },
+    "root": {
+      "alias": "r",
+      "default":".",
+      "describe": "The root path for other paths provided in these options. This should either be absolute or relative to the current working directory."
+    },
+    "appRoot": {
+      "alias": "a",
+      "default":"apps",
+      "describe": "The root path for the apps. This should either be relative to the root directory."
+    },
+    "outputPath": {
+      "alias": "o",
+      "describe": "A path to where the translation file will be written. This should be relative to the root path.",
+      "default": "."
+    },
+    "localizeOutputPath": {
+      "describe": "A path to where the translation file will be written. This should be relative to the root path.",
+      "default": "dist/localize-messages.xlf"
+    },
+    "configuration": {
+      "alias": "c",
+      "type": "string",
+      "describe": "A named build target, as specified in the configurations section of angular.json. Each named target is accompanied by a configuration of option defaults for that target. Setting this explicitly overrides the --prod flag"
+    },
+    "browserTarget": {
+      "describe": "Target to extract from.",
+      "type": "string"
+    },
+    "loglevel": {
+      "describe": "The lowest severity logging message that should be output.",
+      "default": "info",
+      "choices": [
+        "debug",
+        "info",
+        "warn",
+        "error"
+      ]
+    },
+    "progress": {
+      "type": "boolean",
+      "describe": "Log progress to the console."
+    },
+    "prod": {
+      "type": "boolean",
+      "describe": "Shorthand for '--configuration=production'. When true, sets the build configuration to the production target. By default, the production target is set up in the workspace configuration such that all builds make use of bundling, limited tree-shaking, and also limited dead code elimination."
+    },
+    "useSourceMaps": {
+      "type": "boolean",
+      "default": true,
+      "describe": "Whether to generate source information in the output files by following source-map mappings found in the source files"
+    },
+    "useLegacyIds": {
+      "type": "boolean",
+      "default": true,
+      "describe": "Whether to use the legacy id format for messages that were extracted from Angular templates."
+    },
+    "duplicateMessageHandling": {
+      "alias": "d",
+      "describe": "How to handle messages with the same id but different text.",
+      "choices": [
+        "error",
+        "warning",
+        "ignore"
+      ],
+      "default": "warning"
+    }
+  }
+}

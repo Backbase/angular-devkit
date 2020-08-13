@@ -4,6 +4,11 @@
       "implementation": "./cx-package/cx-package",
       "schema": "./cx-package/schema.json",
       "description": "Creates a provisioning package for CX."
+    },
+    "extract-i18n": {
+      "implementation": "./extract-i18n/index",
+      "schema": "./extract-i18n/schema.json",
+      "description": "Extracts i18n messages from templates and $localize and merges them into a single file"
     }
   }
 }
