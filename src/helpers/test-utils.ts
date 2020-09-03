@@ -3,12 +3,37 @@ import * as path from 'path';
 import * as unzipper from 'unzipper';
 import { Volume } from 'memfs/lib/volume';
 import * as glob from 'glob';
+import { Architect } from '@angular-devkit/architect';
+import {
+  TestProjectHost,
+  TestingArchitectHost,
+} from '@angular-devkit/architect/testing';
+import { WorkspaceNodeModulesArchitectHost } from '@angular-devkit/architect/node';
+import {
+  Path,
+  getSystemPath,
+  join,
+  normalize,
+  schema,
+  workspaces,
+} from '@angular-devkit/core';
 
 export const cxPackageBuilderName = '@bb-cli/angular-devkit:cx-package';
 /**
  * Absolute path to the dir containing the project's package.json file.
  */
-export const rootDir = path.resolve(__dirname, '..', '..', '..', '..');
+export const rootDir = path.resolve(__dirname, '..', '..');
+
+/**
+ * This flag controls whether AOT compilation uses Ivy or View Engine (VE).
+ * **/
+export const veEnabled = process.argv.some((arg) => arg == 'view_engine');
+export const workspaceRoot = join(
+  normalize(__dirname),
+  `../../test-resources/builders/extract-i18n/hello-world-app/`
+);
+export const host = new TestProjectHost(workspaceRoot);
+export const extractI18nTargetSpec = { project: 'app', target: 'extract-i18n' };
 
 /**
  * Verify that the given zip has the given content.
@@ -72,6 +97,46 @@ export function expectZipContents(
       expect(actualFileCount).toEqual(expectedFileCount);
     });
   });
+}
+
+export async function createArchitect(workspaceRoot: Path) {
+  const registry = new schema.CoreSchemaRegistry();
+  registry.addPostTransform(schema.transforms.addUndefinedDefaults);
+  const workspaceSysPath = getSystemPath(workspaceRoot);
+
+  const { workspace }: any = await workspaces.readWorkspace(
+    workspaceSysPath,
+    workspaces.createWorkspaceHost(host as any)
+  );
+  const architectHost = new TestingArchitectHost(
+    workspaceSysPath,
+    workspaceSysPath,
+    new WorkspaceNodeModulesArchitectHost(workspace, workspaceSysPath)
+  );
+  await architectHost.addTarget(
+    {
+      project: 'app',
+      target: 'extract-i18n',
+    },
+    '@bb-cli/angular-devkit:extract-i18n'
+  );
+  await architectHost.addBuilderFromPackage(rootDir);
+  const architect = new Architect(architectHost, registry);
+
+  // Set AOT compilation to use VE if needed.
+  if (veEnabled) {
+    host.replaceInFile(
+      'tsconfig.json',
+      `"enableIvy": true,`,
+      `"enableIvy": false,`
+    );
+  }
+
+  return {
+    workspace,
+    architectHost,
+    architect,
+  };
 }
 
 async function recursivelyExplodeZip(

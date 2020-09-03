@@ -1,10 +1,10 @@
 import { Architect, BuilderOutput } from '@angular-devkit/architect';
 import { TestingArchitectHost } from '@angular-devkit/architect/testing';
 import { JsonObject, schema, logging } from '@angular-devkit/core';
+import * as childProcess from 'child_process';
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { CxPackageBuilderOptions } from '../schema';
 import { promisify } from 'util';
 import {
   expectZipContents,
@@ -22,29 +22,29 @@ const testDir = path.resolve(
   rootDir,
   'test-resources',
   'builders',
-  'cx-package',
-  'page-builder'
+  'extract-i18n',
+  'hello-world-app'
 );
 
-describe('cx-package builder with page item', () => {
+describe('extract-i18n builder', () => {
   function testWithOptions(
     description: string,
-    options: CxPackageBuilderOptions & JsonObject,
+    options: any,
     expectedOutput: string
   ) {
     describe(description, () => {
-      const expectedOutputPath = path.resolve(
-        testDir,
-        'dist',
-        'provisioning-packages',
-        options.destFileName || 'package.zip'
-      );
+      const expectedOutputPath = path.resolve(testDir, 'dist');
 
       const infoLogs = [];
 
       let architect: Architect;
       let architectHost: TestingArchitectHost;
       let output: BuilderOutput;
+
+      function linkBinary() {
+        // Links binary `xliff-join` exposed in package json
+        return childProcess.execSync('npm link');
+      }
 
       async function cleanTestOutputDir() {
         await rimraf(path.resolve(testDir, 'dist'));
@@ -57,6 +57,9 @@ describe('cx-package builder with page item', () => {
         architectHost = new TestingArchitectHost(testDir, testDir);
         architect = new Architect(architectHost, registry);
 
+        await architectHost.addBuilderFromPackage(
+          '@angular-devkit/build-angular'
+        );
         await architectHost.addBuilderFromPackage(rootDir);
       }
 
@@ -74,7 +77,7 @@ describe('cx-package builder with page item', () => {
         const logger: any = createLogger();
 
         const run = await architect.scheduleBuilder(
-          cxPackageBuilderName,
+          '@bb-cli/angular-devkit:extract-i18n',
           options,
           {
             logger,
@@ -92,65 +95,29 @@ describe('cx-package builder with page item', () => {
         return dir;
       }
 
-      beforeAll(async () => {
-        jest.spyOn(fs.promises, 'mkdtemp').mockImplementation(mockMkDirTmp);
-        await cleanTestOutputDir();
+      beforeAll(async (done) => {
+        // jest.spyOn(fs.promises, 'mkdtemp').mockImplementation(mockMkDirTmp);
+        linkBinary();
+        // await cleanTestOutputDir();
         await configureArchitect();
         await runBuilder();
-      });
+        done();
+      }, 30000);
 
-      it('should report success', () => {
+      it('should report success', async () => {
         expect(output.success).toBe(true);
       });
-
-      it('should log the path to the built package', () => {
-        expect(infoLogs).toContain(
-          `Created provisioning package: ${expectedOutputPath}`
-        );
-      });
-
-      expectZipContents(
-        expectedOutputPath,
-        path.resolve(testDir, 'expected', expectedOutput)
-      );
     });
   }
 
   testWithOptions(
     'with multiple localised builds',
     {
-      items: [
-        {
-          type: 'page',
-          name: 'test-page',
-          entryFile: 'resources/index.hbs',
-          icon: 'resources/icon.png',
-          builtSources: 'build',
-          locales: ['en-US', 'cy-GB'],
-          modelXml: 'resources/model.alt.xml',
-        },
-      ],
-      destFileName: 'my-awesome-package.zip',
-      skipCleanUp: true,
+      root: '.',
+      appRoot: '',
+      browserTarget: 'app:build',
+      outputPath: 'messages',
     },
     'multi-locale'
-  );
-
-  testWithOptions(
-    'with a single build',
-    {
-      items: [
-        {
-          type: 'page',
-          name: 'test-page',
-          entryFile: 'resources/index.hbs',
-          icon: 'resources/icon.png',
-          builtSources: 'build/en-US',
-          modelXml: 'resources/model.xml',
-        },
-      ],
-      skipCleanUp: true,
-    },
-    'single-locale'
   );
 });
