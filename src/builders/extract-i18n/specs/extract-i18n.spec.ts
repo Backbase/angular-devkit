@@ -1,123 +1,111 @@
-import { Architect, BuilderOutput } from '@angular-devkit/architect';
-import { TestingArchitectHost } from '@angular-devkit/architect/testing';
-import { JsonObject, schema, logging } from '@angular-devkit/core';
-import * as childProcess from 'child_process';
-
+import { extractLocalizeTranslations, joinXliff, xi18n } from '../index';
+import { logging } from '@angular-devkit/core';
 import * as fs from 'fs';
 import * as path from 'path';
-import { promisify } from 'util';
-import {
-  expectZipContents,
-  rootDir,
-  cxPackageBuilderName,
-} from '../../../helpers/test-utils';
+import * as childProcess from 'child_process';
+import { EventEmitter } from 'events';
+import { Writable, Readable } from 'stream';
+import { JsonObject } from '@angular-devkit/core';
+import { ExtractI18NOptions } from '../schema';
 
-import * as rimrafWithCallback from 'rimraf';
-const rimraf = promisify(rimrafWithCallback);
-
-/**
- * Path to the dir containing test assets.
- */
-const testDir = path.resolve(
-  rootDir,
-  'test-resources',
-  'builders',
-  'extract-i18n',
-  'hello-world-app'
-);
-
-describe('extract-i18n builder', () => {
-  function testWithOptions(
-    description: string,
-    options: any,
-    expectedOutput: string
-  ) {
-    describe(description, () => {
-      const expectedOutputPath = path.resolve(testDir, 'dist');
-
-      const infoLogs = [];
-
-      let architect: Architect;
-      let architectHost: TestingArchitectHost;
-      let output: BuilderOutput;
-
-      function linkBinary() {
-        // Links binary `xliff-join` exposed in package json
-        return childProcess.execSync('npm link');
+const writeFileMap: { [key: string]: string } = {};
+const mockChildProcess = new EventEmitter() as childProcess.ChildProcess;
+mockChildProcess.stdin = new Writable({ write: jest.fn, final: jest.fn });
+mockChildProcess.stdout = new Readable({ read: jest.fn });
+mockChildProcess.stderr = new Readable({
+  read() {
+    mockChildProcess.emit('close');
+  },
+});
+describe('Extract i18n Target', () => {
+  const infoLogs = [];
+  function createLogger() {
+    const logger = new logging.Logger('');
+    logger.subscribe((ev) => {
+      if (ev.level === 'info') {
+        infoLogs.push(ev.message);
       }
-
-      async function cleanTestOutputDir() {
-        await rimraf(path.resolve(testDir, 'dist'));
-      }
-
-      async function configureArchitect() {
-        const registry = new schema.CoreSchemaRegistry();
-        registry.addPostTransform(schema.transforms.addUndefinedDefaults);
-
-        architectHost = new TestingArchitectHost(testDir, testDir);
-        architect = new Architect(architectHost, registry);
-
-        await architectHost.addBuilderFromPackage(
-          '@angular-devkit/build-angular'
-        );
-        await architectHost.addBuilderFromPackage(rootDir);
-      }
-
-      function createLogger() {
-        const logger = new logging.Logger('');
-        logger.subscribe((ev) => {
-          if (ev.level === 'info') {
-            infoLogs.push(ev.message);
-          }
-        });
-        return logger;
-      }
-
-      async function runBuilder() {
-        const logger: any = createLogger();
-
-        const run = await architect.scheduleBuilder(
-          '@bb-cli/angular-devkit:extract-i18n',
-          options,
-          {
-            logger,
-          }
-        );
-
-        output = await run.result;
-
-        await run.stop();
-      }
-
-      async function mockMkDirTmp(prefix): Promise<string> {
-        const dir = `${prefix}RANDOM`;
-        await fs.promises.mkdir(dir);
-        return dir;
-      }
-
-      beforeAll(async (done) => {
-        // jest.spyOn(fs.promises, 'mkdtemp').mockImplementation(mockMkDirTmp);
-        linkBinary();
-        // await cleanTestOutputDir();
-        await configureArchitect();
-        await runBuilder();
-        done();
-      }, 30000);
-
-      it('should report success', async () => {
-        expect(output.success).toBe(true);
-      });
     });
+    return logger;
   }
-
-  testWithOptions(
-    'with multiple localised builds',
-    {
-      root: '.',
-      appRoot: '',
-      browserTarget: 'app:build',
-      outputPath: 'messages',
+  const options: ExtractI18NOptions & JsonObject = {
+    format: 'xlf',
+    appRoot: '',
+    outFile: '',
+    browserTarget: '',
+    locale: 'en',
+    outputPath: './test-resources/builders/extract-i18n/dist',
+    localizeOutputPath:
+      './test-resources/builders/extract-i18n/dist/localize-messages.xlf',
+    root: '.',
+    loglevel: 'error',
+    useSourceMaps: false,
+    useLegacyIds: false,
+    duplicateMessageHandling: 'ignore',
+    source: './test-resources/builders/extract-i18n/*.js',
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const context: any = {
+    logger: createLogger(),
+    target: {
+      project: 'test',
+      target: '',
     },
-    'multi-locale'
-  );
+    /* eslint-disable @typescript-eslint/no-unused-vars */
+    scheduleBuilder(_builderName: string) {
+      // mock schedule builder
+    },
+  };
+
+  it('triggers i18n extraction from templates', async () => {
+    const scheduleBuilderSpy = jest.spyOn(context, 'scheduleBuilder');
+    await xi18n(options, context);
+    expect(scheduleBuilderSpy).toBeCalledWith(
+      '@angular-devkit/build-angular:extract-i18n',
+      {
+        browserTarget: 'test:build',
+        format: 'xlf',
+        outputPath: './test-resources/builders/extract-i18n/dist',
+        outFile: '',
+      },
+      {
+        target: context.target,
+      }
+    );
+  });
+
+  it('extracts $localize messages to a file', async () => {
+    jest.spyOn(fs, 'writeFileSync').mockImplementation((filePath, options) => {
+      const fileName = path.basename(<string>filePath);
+      writeFileMap[fileName] = <string>options;
+    });
+    const localizeMessagesFile = path.basename(options.localizeOutputPath);
+
+    await extractLocalizeTranslations(options, context);
+    expect(writeFileMap[localizeMessagesFile]).toContain('custom-id');
+    expect(writeFileMap[localizeMessagesFile]).toContain('Custom id message');
+    expect(writeFileMap[localizeMessagesFile]).toContain('custom-id-2');
+    expect(writeFileMap[localizeMessagesFile]).toContain(
+      'Custom and legacy message'
+    );
+  });
+
+  it('triggers xliff-merge with expected options', async () => {
+    const childProcessSpy = jest
+      .spyOn(childProcess, 'spawn')
+      .mockReturnValue(mockChildProcess);
+    const outFile = path.join(
+      options['root'],
+      options['appRoot'],
+      context.target.project || '',
+      'src',
+      path.join(options.outputPath, 'messages.xlf')
+    );
+    await joinXliff(options, context);
+    expect(childProcessSpy).toBeCalledWith(
+      'xliff-join',
+      [outFile, options['localizeOutputPath'], '-o', outFile],
+      { stdio: 'pipe' }
+    );
+  });
 });

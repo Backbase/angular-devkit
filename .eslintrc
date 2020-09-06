@@ -13,7 +13,6 @@
     "plugin:prettier/recommended"
   ],
   "rules": {
-    "prettier/prettier": "error",
-    "@typescript-eslint/no-explicit-any": "off"
+    "prettier/prettier": "error"
   }
 }

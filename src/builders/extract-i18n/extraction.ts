@@ -1,31 +1,21 @@
-#!/usr/bin/env node
-/**
- * @license
- * Copyright Google LLC All Rights Reserved.
- *
- * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
- */
 import {
   getFileSystem,
-  setFileSystem,
-  NodeJSFileSystem,
   AbsoluteFsPath,
 } from '@angular/compiler-cli/src/ngtsc/file_system';
-import { Logger } from '../ngtsc-utils/logging';
+import { Logger } from '@angular/compiler-cli/src/ngtsc/logging';
 import { ɵParsedMessage } from '@angular/localize';
 
-import { DiagnosticHandlingStrategy } from '../diagnostics';
+import { DiagnosticHandlingStrategy } from '@angular/localize/src/tools/src/diagnostics';
+import { checkDuplicateMessages } from '@angular/localize/src/tools/src/extract/duplicates';
+import { MessageExtractor } from '@angular/localize/src/tools/src/extract/extraction';
+import { TranslationSerializer } from '@angular/localize/src/tools/src/extract/translation_files/translation_serializer';
+import { SimpleJsonTranslationSerializer } from '@angular/localize/src/tools/src/extract/translation_files/json_translation_serializer';
+import { Xliff1TranslationSerializer } from '@angular/localize/src/tools/src/extract/translation_files/xliff1_translation_serializer';
+import { Xliff2TranslationSerializer } from '@angular/localize/src/tools/src/extract/translation_files/xliff2_translation_serializer';
+import { XmbTranslationSerializer } from '@angular/localize/src/tools/src/extract/translation_files/xmb_translation_serializer';
+import { ExtractI18NOptions } from './schema';
 
-import { checkDuplicateMessages } from './duplicates';
-import { MessageExtractor } from './extraction';
-import { TranslationSerializer } from './translation_files/translation_serializer';
-import { SimpleJsonTranslationSerializer } from './translation_files/json_translation_serializer';
-import { Xliff1TranslationSerializer } from './translation_files/xliff1_translation_serializer';
-import { Xliff2TranslationSerializer } from './translation_files/xliff2_translation_serializer';
-import { XmbTranslationSerializer } from './translation_files/xmb_translation_serializer';
-
-export interface ExtractTranslationsOptions {
+export interface ExtractTranslationsOptions extends ExtractI18NOptions {
   /**
    * The locale of the source being processed.
    */
@@ -41,30 +31,9 @@ export interface ExtractTranslationsOptions {
    */
   sourceFilePaths: string[];
   /**
-   * The format of the translation file.
-   */
-  format: string;
-  /**
-   * A path to where the translation file will be written. This should be relative to the rootPath.
-   */
-  outputPath: string;
-  /**
    * The logger to use for diagnostic messages.
    */
   logger: Logger;
-  /**
-   * Whether to generate source information in the output files by following source-map mappings
-   * found in the source file.
-   */
-  useSourceMaps: boolean;
-  /**
-   * Whether to use the legacy id format for messages that were extracted from Angular templates
-   */
-  useLegacyIds: boolean;
-  /**
-   * How to handle messages with the same id but not the same text.
-   */
-  duplicateMessageHandling: DiagnosticHandlingStrategy;
 }
 
 export function extractTranslations({
@@ -80,7 +49,7 @@ export function extractTranslations({
 }: ExtractTranslationsOptions): void {
   const fs = getFileSystem();
   const basePath = fs.resolve(rootPath);
-  const extractor = new MessageExtractor(fs, logger, {
+  const extractor = new MessageExtractor(fs, <Logger>logger, {
     basePath,
     useSourceMaps,
   });
@@ -93,7 +62,7 @@ export function extractTranslations({
   const diagnostics = checkDuplicateMessages(
     fs,
     messages,
-    duplicateMessageHandling,
+    <DiagnosticHandlingStrategy>duplicateMessageHandling,
     basePath
   );
   if (diagnostics.hasErrors) {

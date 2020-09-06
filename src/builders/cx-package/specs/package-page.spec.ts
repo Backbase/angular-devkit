@@ -1,16 +1,12 @@
 import { Architect, BuilderOutput } from '@angular-devkit/architect';
 import { TestingArchitectHost } from '@angular-devkit/architect/testing';
-import { JsonObject, schema, logging } from '@angular-devkit/core';
+import { JsonObject, logging, schema } from '@angular-devkit/core';
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { CxPackageBuilderOptions } from '../schema';
 import { promisify } from 'util';
-import {
-  expectZipContents,
-  rootDir,
-  cxPackageBuilderName,
-} from '../../../helpers/test-utils';
+import { expectZipContents, rootDir, cxPackageBuilderName } from './test-utils';
 
 import * as rimrafWithCallback from 'rimraf';
 const rimraf = promisify(rimrafWithCallback);
@@ -71,7 +67,7 @@ describe('cx-package builder with page item', () => {
       }
 
       async function runBuilder() {
-        const logger: any = createLogger();
+        const logger = createLogger();
 
         const run = await architect.scheduleBuilder(
           cxPackageBuilderName,

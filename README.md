@@ -10,6 +10,8 @@ The following [Angular Builders](https://angular.io/guide/cli-builder) are inclu
 
 * [`cx-package`](https://github.com/Backbase/angular-devkit/blob/master/src/builders/cx-package/README.md):
   Used to build a CX-deployable zip-of-zips
+* [`extract-i18n`](https://github.com/Backbase/angular-devkit/blob/master/src/builders/extract-i18n/README.md):
+  Used to extract i18n $localize messages. 
 
 ## License
 

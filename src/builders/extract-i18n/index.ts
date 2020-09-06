@@ -2,69 +2,55 @@ import {
   createBuilder,
   BuilderOutput,
   BuilderContext,
+  BuilderRun,
 } from '@angular-devkit/architect';
 import { JsonObject } from '@angular-devkit/core';
-import { extractTranslations } from '../../helpers/extract/main';
-import { LogLevel, ConsoleLogger } from '../../helpers/ngtsc-utils/logging';
+import {
+  LogLevel,
+  ConsoleLogger,
+} from '@angular/compiler-cli/src/ngtsc/logging';
 import * as glob from 'glob';
 import * as childProcess from 'child_process';
 import * as path from 'path';
+import * as fs from 'fs';
 import {
   NodeJSFileSystem,
   setFileSystem,
 } from '@angular/compiler-cli/src/ngtsc/file_system';
+import { extractTranslations } from './extraction';
+import { ExtractI18NOptions } from './schema';
 
-export interface ExtractI18nOptions extends JsonObject {
-  format:
-    | 'xmb'
-    | 'xlf'
-    | 'xlif'
-    | 'xliff'
-    | 'xlf2'
-    | 'xlif2'
-    | 'xliff2'
-    | 'json';
-  locale: string;
-  root: string;
-  appRoot: string;
-  outputPath: string;
-  outFile: string;
-  browserTarget: string;
-  localizeOutputPath: string;
-  source: string | string[];
-  loglevel: 'debug' | 'info' | 'warn' | 'error';
-  useSourceMaps: boolean;
-  useLegacyIds: boolean;
-  prod?: boolean;
-  progress?: boolean;
-  duplicateMessageHandling: 'error' | 'warning' | 'ignore';
+export default createBuilder(extractI18nBuilder);
+
+async function extractI18nBuilder(
+  options?: ExtractI18NOptions & JsonObject,
+  context?: BuilderContext
+) {
+  try {
+    const i18nExtract = await xi18n(options, context);
+    const result = await i18nExtract.result;
+    if (result.success) {
+      await extractLocalizeTranslations(options, context);
+    }
+    const localizeFile = fs.readFileSync(options.localizeOutputPath, 'utf-8');
+
+    if (!localizeFile || !localizeFile.includes('trans-unit')) {
+      context.logger.info('No localize messages extracted. Merge skipped');
+      return Promise.resolve(result);
+    }
+
+    return await joinXliff(options, context);
+  } catch (error) {
+    context.logger.error(error);
+    return { success: false };
+  }
 }
 
-export default createBuilder<ExtractI18nOptions>(
-  async (options?: ExtractI18nOptions, context?: BuilderContext) => {
-    console.log({ options });
-    console.log({ context });
-    try {
-      const i18nExtract = await xi18n(options, context);
-      console.log({ i18nExtract });
-      const result = await i18nExtract.result;
-      if (result.success) {
-        await extractLocalizeTranslations(options, context);
-      }
-      console.log({ result });
-      return await joinXliff(options, context);
-    } catch (error) {
-      context.logger.error(error);
-      console.log(error);
-      return { success: false };
-    }
-  }
-);
-
-function xi18n(options: ExtractI18nOptions, context: BuilderContext) {
+export function xi18n(
+  options: ExtractI18NOptions,
+  context: BuilderContext
+): Promise<BuilderRun> {
   context.logger.info('Extracting i18n...');
-  console.log({ options });
-  console.log({ context });
   return context.scheduleBuilder(
     '@angular-devkit/build-angular:extract-i18n',
     {
@@ -80,14 +66,14 @@ function xi18n(options: ExtractI18nOptions, context: BuilderContext) {
   );
 }
 
-function extractLocalizeTranslations(
-  options: ExtractI18nOptions,
+export function extractLocalizeTranslations(
+  options: ExtractI18NOptions,
   context: BuilderContext
-) {
+): void {
   context.logger.info(`Extracting localize i18n...`);
   const fs = new NodeJSFileSystem();
   setFileSystem(fs);
-  const rootPath = options['root'] || context.target.project;
+  const rootPath = options['root'];
   const filePath = Array.isArray(options['source'])
     ? `{${options['source'].join(',')}}`
     : options['source'];
@@ -113,7 +99,10 @@ function extractLocalizeTranslations(
   });
 }
 
-function joinXliff(options: ExtractI18nOptions, context: BuilderContext) {
+export function joinXliff(
+  options: ExtractI18NOptions,
+  context: BuilderContext
+): Promise<BuilderOutput> {
   context.logger.info(
     `Merging extracted i18n messages with localize messages...`
   );
@@ -121,7 +110,7 @@ function joinXliff(options: ExtractI18nOptions, context: BuilderContext) {
     const outFile = path.join(
       options['root'],
       options['appRoot'],
-      context.target.project || '',
+      context.target.project,
       'src',
       getOutFilePath(options)
     );
