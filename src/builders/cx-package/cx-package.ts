@@ -15,10 +15,9 @@ import * as path from 'path';
 import { JsonObject } from '@angular-devkit/core';
 import { promisify } from 'util';
 import { createPageContent } from './item-builders/page-builder';
-import * as zipFolderWithCallback from 'zip-folder';
+import { ZipAFolder } from 'zip-a-folder';
 import * as rimrafWithCallback from 'rimraf';
 
-const zipFolder = promisify(zipFolderWithCallback);
 const rimraf = promisify(rimrafWithCallback);
 
 export default createBuilder(cxPackageBuilder);
@@ -99,7 +98,7 @@ function createProvisioningItemFactory(
       builderContext: context,
     });
 
-    await zipFolder(
+    await ZipAFolder.zip(
       itemZipContentsDir,
       path.resolve(tmpDirName, itemZipFileName)
     );
@@ -144,7 +143,7 @@ async function createZipOfZips(
   );
 
   const zozPath = path.resolve(destPath, destFileName);
-  await zipFolder(zozContentPath, zozPath);
+  await ZipAFolder.zip(zozContentPath, zozPath);
   return zozPath;
 }
 
